@@ -3,7 +3,7 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 
-#include "cpu.h"
+#include "bus.h"
 
 using namespace nes;
 
@@ -17,7 +17,7 @@ void setup_spdlog() {
 int main([[maybe_unused]] const int argc, [[maybe_unused]] const char **argv) {
   setup_spdlog();
 
-  auto cpu = std::make_unique<cpu::CPU>();
+  auto bus = std::make_unique<bus::Bus>();
 
   return 0;
 }
