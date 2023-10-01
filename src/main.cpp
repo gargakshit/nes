@@ -1,5 +1,3 @@
-#include <memory>
-
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 
@@ -17,7 +15,11 @@ void setup_spdlog() {
 int main([[maybe_unused]] const int argc, [[maybe_unused]] const char **argv) {
   setup_spdlog();
 
-  auto bus = std::make_unique<bus::Bus>();
+  bus::Bus bus;
+
+  for (auto i = 0; i < 128; i++) {
+    bus.tick();
+  }
 
   return 0;
 }

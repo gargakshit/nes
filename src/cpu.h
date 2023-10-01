@@ -2,7 +2,10 @@
 #define NES_CPU_H
 
 #include <cstdint>
+#include <functional>
 #include <string>
+
+#include "opcode.h"
 
 namespace nes::cpu {
 // 7  bit  0
@@ -41,13 +44,32 @@ struct Registers {
   }; // Status register
 };
 
+using ReadFunction = std::function<uint8_t (uint16_t)>;
+using WriteFunction = std::function<void (uint16_t, uint8_t)>;
+
 class CPU : private Registers {
   void dump_reg() noexcept;
   void dump_state() noexcept;
   void sanity() noexcept;
 
+  ReadFunction read;
+  WriteFunction write;
+
+  // Number of cycles waiting to execute before we can execute the next opcode.
+  int pending_cycles = 0;
+  // Fetched value for the ALU.
+  uint8_t fetched = 0;
+  // Absolute address to jump to / fetch a value from.
+  uint16_t addr_abs = 0;
+  // Relative address to jump to.
+  uint16_t addr_rel = 0;
+  // Opcode that is being currently executed.
+  uint8_t opcode = 0;
+
+  void addressing_mode(op::AddressingMode mode) noexcept;
+
 public:
-  CPU() noexcept;
+  CPU(ReadFunction read, WriteFunction write) noexcept;
   ~CPU() noexcept;
 
   // Reset the CPU.

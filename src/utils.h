@@ -7,7 +7,7 @@
 #include <spdlog/sinks/stdout_color_sinks.h>
 
 namespace nes::utils {
-auto global_panic_logger = spdlog::stderr_color_mt("PANIC");
+auto global_panic_logger = spdlog::stderr_color_mt("nes::utl");
 } // namespace nes::utils
 
 #define PANIC(msg) \

@@ -3,7 +3,6 @@
 
 #include <array>
 #include <cstdint>
-#include <memory>
 
 #include "cpu.h"
 
@@ -14,13 +13,18 @@ class Bus {
   const static auto memory_size = 1 << 16;
 
   // For now, all the address space is mapped to memory.
-  std::unique_ptr<std::array<uint8_t, memory_size>> memory;
-  std::unique_ptr<cpu::CPU> cpu;
+  std::array<uint8_t, memory_size> memory;
+  cpu::CPU cpu;
 
 public:
   Bus() noexcept;
   ~Bus() noexcept;
+
+  void write(uint16_t address, uint8_t value) noexcept;
+  uint8_t read(uint16_t address) noexcept;
+
+  void tick() noexcept;
 };
 } // namespace nes::bus
 
-#endif //NES_BUS_H
+#endif // NES_BUS_H
