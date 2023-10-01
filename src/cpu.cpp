@@ -1,7 +1,7 @@
-#include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 
 #include "cpu.h"
+#include "opcode.h"
 #include "utils.h"
 
 // Enable runtime CPU sanity checks.
@@ -15,6 +15,8 @@
   } while (false);
 
 namespace nes::cpu {
+using namespace op;
+
 auto logger = spdlog::stderr_color_mt("cpu");
 
 CPU::CPU() noexcept: Registers() {
@@ -56,10 +58,6 @@ void CPU::dump_reg() noexcept {
   logger->debug("    p.N = {:b}", static_cast<uint8_t>(status.N));
 }
 
-void CPU::dump_state() noexcept {
-  dump_reg();
-}
-
 void CPU::sanity() noexcept {
 #ifdef NES_CPU_RT_SANITY
   if ((p & 0b00100000) != 0b00100000) {
@@ -70,6 +68,24 @@ void CPU::sanity() noexcept {
     SANITY_PANIC("Sanity: always-set status bit is not set, invalid status bitfield pack.");
   }
 #endif
+}
+
+void CPU::dump_state() noexcept {
+  dump_reg();
+}
+
+void CPU::tick() noexcept {
+  logger->trace("Tick.");
+}
+
+uint8_t CPU::irq() noexcept {
+  logger->trace("External IRQ received.");
+  return 0;
+}
+
+uint8_t CPU::nmi() noexcept {
+  logger->trace("External NMI received.");
+  return 0;
 }
 
 CPU::~CPU() noexcept {
