@@ -1,13 +1,16 @@
-#include <iostream>
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
 
 #include "cpu.h"
 
+auto logger = spdlog::stderr_color_mt("cpu");
+
 namespace nes::cpu {
 CPU::CPU() {
-  std::cout << "new cpu!" << std::endl;
+  logger->trace("Constructed a new CPU");
 }
 
 CPU::~CPU() {
-  std::cout << "delete cpu" << std::endl;
+  logger->trace("Deleted the CPU");
 }
 } // namespace nes::cpu
