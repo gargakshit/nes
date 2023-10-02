@@ -1,12 +1,8 @@
 #include <spdlog/sinks/stdout_color_sinks.h>
 
+#include "config.h"
 #include "cpu.h"
 #include "utils.h"
-
-// Enable runtime CPU sanity checks.
-// If we reach an impossible state, we panic. It is recommended that we don't
-// build with sanity checks enabled as those cost a lot of performance.
-#define NES_CPU_RT_SANITY
 
 #define SANITY_PANIC(msg)                                                      \
   do {                                                                         \
@@ -722,12 +718,20 @@ void CPU::tick() noexcept {
 
 uint8_t CPU::irq() noexcept {
   logger->trace("External IRQ received.");
-  return 0;
+  if (!status.I) {
+    logger->trace("Ignoring external IRQ (p.i is set)");
+    return 0;
+  }
+
+  interrupt(0xFFFE);
+  return pending_cycles;
 }
 
 uint8_t CPU::nmi() noexcept {
   logger->trace("External NMI received.");
-  return 0;
+  interrupt(0xFFFA);
+
+  return pending_cycles;
 }
 
 CPU::~CPU() noexcept { logger->trace("Destructed the CPU."); }
