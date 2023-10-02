@@ -54,4 +54,10 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
 
     # Also enable runtime CPU tracing.
     add_compile_definitions(NES_CPU_RT)
+else ()
+    # Enable LTO.
+    target_compile_options(nes PRIVATE -flto)
+    target_link_options(nes PRIVATE -flto)
+    target_compile_options(test-cpu PRIVATE -flto)
+    target_link_options(test-cpu PRIVATE -flto)
 endif ()
