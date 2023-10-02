@@ -22,21 +22,21 @@ namespace nes::cpu {
 // +--------- Negative
 // Reference: https://www.nesdev.org/wiki/Status_flags#Flags
 struct Status {
-  uint8_t C: 1;
-  uint8_t Z: 1;
-  uint8_t I: 1;
-  uint8_t D: 1;
-  uint8_t B: 1;
-  uint8_t _: 1;
-  uint8_t V: 1;
-  uint8_t N: 1;
+  uint8_t C : 1;
+  uint8_t Z : 1;
+  uint8_t I : 1;
+  uint8_t D : 1;
+  uint8_t B : 1;
+  uint8_t _ : 1;
+  uint8_t V : 1;
+  uint8_t N : 1;
 };
 
 struct Registers {
-  uint8_t a; // Accumulator.
-  uint8_t x; // X register.
-  uint8_t y; // Y register.
-  uint8_t sp; // Stack pointer.
+  uint8_t a;   // Accumulator.
+  uint8_t x;   // X register.
+  uint8_t y;   // Y register.
+  uint8_t sp;  // Stack pointer.
   uint16_t pc; // Program counter.
   union {
     uint8_t p;
@@ -44,28 +44,23 @@ struct Registers {
   }; // Status register
 };
 
-using ReadFunction = std::function<uint8_t (uint16_t)>;
-using WriteFunction = std::function<void (uint16_t, uint8_t)>;
+using ReadFunction = std::function<uint8_t(uint16_t)>;
+using WriteFunction = std::function<void(uint16_t, uint8_t)>;
 
-class CPU : private Registers {
+class CPU : public Registers {
   void dump_reg() noexcept;
   void dump_state() noexcept;
   void sanity() noexcept;
 
   ReadFunction read;
   WriteFunction write;
-
-  // Number of cycles waiting to execute before we can execute the next opcode.
-  int pending_cycles = 0;
   // Fetched value for the ALU.
   uint8_t fetched = 0;
   // Absolute address to jump to / fetch a value from.
   uint16_t addr_abs = 0;
   // Relative address to jump to.
   uint16_t addr_rel = 0;
-  // Opcode that is being currently executed.
-  uint8_t opcode = 0;
-  const op::Opcode* decoded_opcode;
+  const op::Opcode *decoded_opcode;
 
   // Compute addresses and stuff using the addressing mode.
   void addressing_mode(op::AddressingMode mode) noexcept;
@@ -99,6 +94,11 @@ class CPU : private Registers {
 public:
   CPU(ReadFunction read, WriteFunction write) noexcept;
   ~CPU() noexcept;
+
+  // Number of cycles waiting to execute before we can execute the next opcode.
+  int pending_cycles = 0;
+  // Opcode that is being currently executed.
+  uint8_t opcode = 0;
 
   // Reset the CPU.
   void rst() noexcept;

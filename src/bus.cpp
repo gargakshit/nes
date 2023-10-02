@@ -12,7 +12,8 @@ auto logger = spdlog::stderr_color_mt("nes::bus");
 #pragma ide diagnostic ignored "modernize-avoid-bind"
 Bus::Bus() noexcept
     : cpu(cpu::CPU(std::bind(&Bus::read, this, std::placeholders::_1),
-                   std::bind(&Bus::write, this, std::placeholders::_1, std::placeholders::_2))),
+                   std::bind(&Bus::write, this, std::placeholders::_1,
+                             std::placeholders::_2))),
       memory(std::array<uint8_t, memory_size>()) {
   logger->trace("Creating a new bus.");
   logger->trace("Created a memory of size {0:#x} ({0}) bytes.", memory.size());
@@ -33,6 +34,7 @@ void Bus::write(uint16_t address, uint8_t value) noexcept {
 }
 
 void Bus::tick() noexcept {
+  elapsed_cycles++;
   cpu.tick();
 }
 

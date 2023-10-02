@@ -1,11 +1,7 @@
 #ifndef NES_CONFIG_H
 #define NES_CONFIG_H
 
-// Enable runtime checks for stuff.
-#define NES_CPU_RT
-
 #ifdef NES_CPU_RT
-
 // Warn.
 #warning Building with CPU RT tracing. Will impact performance.
 

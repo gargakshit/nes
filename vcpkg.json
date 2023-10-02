@@ -6,6 +6,20 @@
     {
       "name": "spdlog",
       "version>=": "1.12.0"
+    },
+    {
+      "name": "glfw3",
+      "version>=": "3.3.8#2"
+    },
+    {
+      "name": "imgui",
+      "version>=": "1.89.7",
+      "features": [
+        "docking-experimental",
+        "glfw-binding",
+        "metal-binding",
+        "opengl3-binding"
+      ]
     }
   ]
 }

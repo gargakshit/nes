@@ -14,9 +14,12 @@ class Bus {
 
   // For now, all the address space is mapped to memory.
   std::array<uint8_t, memory_size> memory;
-  cpu::CPU cpu;
 
 public:
+  cpu::CPU cpu;
+  // System metrics.
+  uint64_t elapsed_cycles = 0;
+
   Bus() noexcept;
   ~Bus() noexcept;
 
