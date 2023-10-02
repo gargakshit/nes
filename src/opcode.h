@@ -84,6 +84,7 @@ struct Opcode {
   // We set the base number of cycles required here, and then compute the
   // penalty during runtime.
   const int cycles;
+  const bool page_penalty = true;
   const bool unknown = false;
 };
 
@@ -92,6 +93,7 @@ const auto unknown_op = Opcode{
     .operation = Op::NOP,
     .mode = AddressingMode::Implicit,
     .cycles = 2,
+    .page_penalty = false,
     .unknown = true,
 };
 
@@ -129,7 +131,7 @@ const Opcode opcodes[256] = {
     unknown_op,
     unknown_op,
     {Op::ORA, AM::AbsoluteX, 4},
-    {Op::ASL, AM::AbsoluteX, 7},
+    {Op::ASL, AM::AbsoluteX, 7, false},
     unknown_op,
     {Op::JSR, AM::Absolute, 6},
     {Op::AND, AM::IndirectX, 6},
@@ -161,7 +163,7 @@ const Opcode opcodes[256] = {
     unknown_op,
     unknown_op,
     {Op::AND, AM::AbsoluteX, 4},
-    {Op::ROL, AM::AbsoluteX, 7},
+    {Op::ROL, AM::AbsoluteX, 7, false},
     unknown_op,
     {Op::RTI, AM::Implicit, 6},
     {Op::EOR, AM::IndirectX, 6},
@@ -193,7 +195,7 @@ const Opcode opcodes[256] = {
     unknown_op,
     unknown_op,
     {Op::EOR, AM::AbsoluteX, 4},
-    {Op::LSR, AM::AbsoluteX, 7},
+    {Op::LSR, AM::AbsoluteX, 7, false},
     unknown_op,
     {Op::RTS, AM::Implicit, 6},
     {Op::ADC, AM::IndirectX, 6},
@@ -225,7 +227,7 @@ const Opcode opcodes[256] = {
     unknown_op,
     unknown_op,
     {Op::ADC, AM::AbsoluteX, 4},
-    {Op::ROR, AM::AbsoluteX, 7},
+    {Op::ROR, AM::AbsoluteX, 7, false},
     unknown_op,
     unknown_op,
     {Op::STA, AM::IndirectX, 6},
@@ -244,7 +246,7 @@ const Opcode opcodes[256] = {
     {Op::STX, AM::Absolute, 4},
     unknown_op,
     {Op::BCC, AM::Relative, 2},
-    {Op::STA, AM::IndirectY, 6},
+    {Op::STA, AM::IndirectY, 6, false},
     unknown_op,
     unknown_op,
     {Op::STY, AM::ZeroPageX, 4},
@@ -252,11 +254,11 @@ const Opcode opcodes[256] = {
     {Op::STX, AM::ZeroPageY, 4},
     unknown_op,
     {Op::TYA, AM::Implicit, 2},
-    {Op::STA, AM::AbsoluteY, 5},
+    {Op::STA, AM::AbsoluteY, 5, false},
     {Op::TXS, AM::Implicit, 2},
     unknown_op,
     unknown_op,
-    {Op::STA, AM::AbsoluteX, 5},
+    {Op::STA, AM::AbsoluteX, 5, false},
     unknown_op,
     unknown_op,
     {Op::LDY, AM::Immediate, 2},
@@ -321,7 +323,7 @@ const Opcode opcodes[256] = {
     unknown_op,
     unknown_op,
     {Op::CMP, AM::AbsoluteX, 4},
-    {Op::DEC, AM::AbsoluteX, 7},
+    {Op::DEC, AM::AbsoluteX, 7, false},
     unknown_op,
     {Op::CPX, AM::Immediate, 2},
     {Op::SBC, AM::IndirectX, 6},
@@ -353,7 +355,7 @@ const Opcode opcodes[256] = {
     unknown_op,
     unknown_op,
     {Op::SBC, AM::AbsoluteX, 4},
-    {Op::INC, AM::AbsoluteX, 7},
+    {Op::INC, AM::AbsoluteX, 7, false},
     unknown_op,
 };
 } // namespace nes::cpu::op

@@ -1,2 +1,4 @@
 cmake-build*
 imgui.ini
+test/cpu/tests
+**/.DS_Store

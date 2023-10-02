@@ -49,7 +49,6 @@ using WriteFunction = std::function<void(uint16_t, uint8_t)>;
 
 class CPU : public Registers {
   void dump_reg() noexcept;
-  void dump_state() noexcept;
   void sanity() noexcept;
 
   ReadFunction read;
@@ -94,6 +93,8 @@ class CPU : public Registers {
 public:
   CPU(ReadFunction read, WriteFunction write) noexcept;
   ~CPU() noexcept;
+
+  void dump_state() noexcept;
 
   // Number of cycles waiting to execute before we can execute the next opcode.
   int pending_cycles = 0;

@@ -1,25 +1,19 @@
 {
-  "name": "nes",
-  "version-string": "1.0.0",
-  "builtin-baseline": "c6d6efed3e9b4242765bfe1b5c5befffd85f7b92",
-  "dependencies": [
-    {
-      "name": "spdlog",
-      "version>=": "1.12.0"
-    },
-    {
-      "name": "glfw3",
-      "version>=": "3.3.8#2"
-    },
-    {
-      "name": "imgui",
-      "version>=": "1.89.7",
-      "features": [
-        "docking-experimental",
-        "glfw-binding",
-        "metal-binding",
-        "opengl3-binding"
-      ]
-    }
-  ]
+  "name" : "nes",
+  "version-string" : "1.0.0",
+  "builtin-baseline" : "c6d6efed3e9b4242765bfe1b5c5befffd85f7b92",
+  "dependencies" : [ {
+    "name" : "spdlog",
+    "version>=" : "1.12.0"
+  }, {
+    "name" : "glfw3",
+    "version>=" : "3.3.8#2"
+  }, {
+    "name" : "imgui",
+    "version>=" : "1.89.7",
+    "features" : [ "docking-experimental", "glfw-binding", "metal-binding", "opengl3-binding" ]
+  }, {
+    "name" : "nlohmann-json",
+    "version>=" : "3.11.2"
+  } ]
 }

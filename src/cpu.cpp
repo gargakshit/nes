@@ -38,7 +38,7 @@ void CPU::rst() noexcept {
   const uint16_t reset_vec_location = 0xFFFC;
   pc = read16(reset_vec_location);
 
-  dump_state();
+  //  dump_state();
   sanity();
 
   // Well reset took 8 cycles on actual hardware.
@@ -76,7 +76,10 @@ void CPU::sanity() noexcept {
 #endif
 }
 
-void CPU::dump_state() noexcept { dump_reg(); }
+void CPU::dump_state() noexcept {
+  logger->debug("Pending cycles: {}", pending_cycles);
+  dump_reg();
+}
 
 void CPU::addressing_mode(op::AddressingMode mode) noexcept {
   switch (mode) {
@@ -131,7 +134,7 @@ void CPU::addressing_mode(op::AddressingMode mode) noexcept {
     // Now read the actual address to jump to.
 
     // Hardware bug: we read the wrong address if we are on the page boundary.
-    if (ptr & 0xff)
+    if ((ptr & 0xff) == 0xff)
       addr_abs = ((uint16_t)read(ptr)) | (((uint16_t)read(ptr & 0xff00)) << 8);
     else
       addr_abs = read16(ptr);
@@ -163,7 +166,7 @@ void CPU::addressing_mode(op::AddressingMode mode) noexcept {
     addr_abs = abs + x;
 
     // Check if we crossed the page boundary.
-    if ((addr_abs & 0xff00) != (abs & 0xff00))
+    if (((addr_abs & 0xff00) != (abs & 0xff00)) && decoded_opcode->page_penalty)
       pending_cycles++;
   } break;
 
@@ -177,7 +180,7 @@ void CPU::addressing_mode(op::AddressingMode mode) noexcept {
     addr_abs = abs + y;
 
     // Check if we crossed the page boundary.
-    if ((addr_abs & 0xff00) != (abs & 0xff00))
+    if (((addr_abs & 0xff00) != (abs & 0xff00)) && decoded_opcode->page_penalty)
       pending_cycles++;
   } break;
 
@@ -207,7 +210,7 @@ void CPU::addressing_mode(op::AddressingMode mode) noexcept {
     addr_abs = ((hi << 8) | lo) + y;
 
     // Check if we crossed the page boundary.
-    if (addr_abs >> 8 != hi)
+    if ((addr_abs >> 8 != hi) && decoded_opcode->page_penalty)
       pending_cycles++;
   } break;
   }
@@ -220,7 +223,9 @@ void CPU::flag_overflow(uint16_t result, uint16_t value) noexcept {
       0x80;
 }
 
-void CPU::flag_negative(uint16_t result) noexcept { status.N = result & 0x80; }
+void CPU::flag_negative(uint16_t result) noexcept {
+  status.N = (result & 0x80) == 0x80;
+}
 
 void CPU::flag_zero(uint16_t result) noexcept {
   status.Z = (result & 0xff) == 0;
@@ -318,8 +323,8 @@ void CPU::execute(op::Op op) noexcept {
     uint16_t result = ((uint16_t)a) & ((uint16_t)fetched);
 
     flag_zero(result);
-    status.N = (fetched & (1 << 7)) == 0;
-    status.V = (fetched & (1 << 6)) == 0;
+    status.N = (fetched >> 7) & 0x1;
+    status.V = (fetched >> 6) & 0x1;
   } break;
 
   case op::Op::BMI: {
@@ -338,6 +343,7 @@ void CPU::execute(op::Op op) noexcept {
   } break;
 
   case op::Op::BRK: {
+    pc++;
     interrupt(0xfffe);
   } break;
 
@@ -617,9 +623,23 @@ void CPU::execute(op::Op op) noexcept {
     flag_negative(a);
   } break;
 
+  case op::Op::LSR: {
+    fetch();
+    status.C = fetched & 1;
+
+    uint16_t result = fetched >> 1;
+    flag_zero(result);
+    flag_negative(result);
+
+    if (decoded_opcode->mode == op::AddressingMode::Implicit)
+      a = result & 0xff;
+    else
+      write(addr_abs, result & 0xff);
+  }; break;
+
   default: {
     PANIC("Unimplemented instruction");
-  } break;
+  }
   }
 }
 
@@ -639,7 +659,6 @@ void CPU::branch() noexcept { // Branch!
 void CPU::interrupt(uint16_t vector) noexcept {
   logger->trace("Performing CPU interrupt with the vector {:#06x}", vector);
 
-  status.I = 1;
   push_pc();
 
   // NOTE(AG): Decimal mode shenanigans on the NES 6502.
@@ -647,6 +666,8 @@ void CPU::interrupt(uint16_t vector) noexcept {
   status.B = 1;
   push(p);
   status.B = 0;
+
+  status.I = 1;
 
   pc = read16(vector);
   dump_reg();
