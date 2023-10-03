@@ -9,6 +9,7 @@
 #include <spdlog/spdlog.h>
 
 #include "bus.h"
+#include "cart.h"
 #include "gui.h"
 #include "platform.h"
 
@@ -35,6 +36,11 @@ static void glfw_error_callback(int error, const char *description) {
 
 int main([[maybe_unused]] const int argc, [[maybe_unused]] const char **argv) {
   setup_spdlog();
+
+  auto loaded_cart = cart::load("carts/demo.nes");
+  if (!loaded_cart) {
+    return 1;
+  }
 
   // Setup window
   glfwSetErrorCallback(glfw_error_callback);
