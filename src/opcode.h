@@ -10,7 +10,7 @@ enum struct AddressingMode {
   ZeroPage,  // Immediate 8-bit value mapped to the zero page.
   Absolute,  // Immediate 16-bit address after the opcode (LE).
   Relative,  // Immediate 8-bit signed offset.
-  Indirect,  // 16-bit (LE) address stored in memory.
+  Indirect,  // 16-bit (LE) address stored in wram.
   ZeroPageX, // Zero Page + X (wraps).
   ZeroPageY, // Zero Page + Y (wraps).
   AbsoluteX, // Immediate 16-bit + X.
@@ -40,11 +40,11 @@ enum struct Op {
   CMP, // Compare.
   CPX, // Compare X register.
   CPY, // Compare Y register.
-  DEC, // Decrement memory.
+  DEC, // Decrement wram.
   DEX, // Decrement X register.
   DEY, // Decrement Y register.
   EOR, // Exclusive OR.
-  INC, // Increment memory.
+  INC, // Increment wram.
   INX, // Increment X register.
   INY, // Increment Y register.
   JMP, // Jump.

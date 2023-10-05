@@ -46,7 +46,7 @@ target_link_libraries(test-cpu PRIVATE nlohmann_json::nlohmann_json)
 add_compile_definitions(GL_SILENCE_DEPRECATION)
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    # Enable memory and address sanitizers on debug build.
+    # Enable wram and address sanitizers on debug build.
     target_compile_options(nes PRIVATE -fsanitize=address)
     target_link_options(nes PRIVATE -fsanitize=address)
     target_compile_options(test-cpu PRIVATE -fsanitize=address)

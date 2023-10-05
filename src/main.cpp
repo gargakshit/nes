@@ -1,3 +1,5 @@
+#include <chrono>
+
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 // TODO(AG): Add support for Metal.
@@ -22,7 +24,7 @@ void setup_spdlog() {
   spdlog::set_default_logger(logger);
 
 #ifdef NES_CPU_RT
-  spdlog::set_level(spdlog::level::trace);
+  spdlog::set_level(spdlog::level::debug);
 #else
   spdlog::set_level(spdlog::level::info);
 #endif
@@ -111,14 +113,69 @@ int main([[maybe_unused]] const int argc, [[maybe_unused]] const char **argv) {
   ImGui_ImplGlfw_InitForOpenGL(window, true);
   ImGui_ImplOpenGL3_Init(glsl_version);
 
-  bus::Bus bus;
-  gui::GUI gui(bus);
+  auto bus = bus::Bus(std::move(*loaded_cart));
+
+  GLuint screen_texture;
+
+  // Generate and bind the screen texture.
+  glGenTextures(1, &screen_texture);
+  glBindTexture(GL_TEXTURE_2D, screen_texture);
+
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, nes::ppu::PPU::screen_width,
+               nes::ppu::PPU::screen_height, 0, GL_RGB, GL_UNSIGNED_BYTE,
+               (GLubyte *)bus.ppu.screen.data());
+
+  spdlog::info("screen_texture = {}", screen_texture);
+  gui::GUI gui(bus, screen_texture);
 
   auto clear_color = ImVec4(0.024f, 0.024f, 0.03f, 1.00f);
+
+  using std::chrono::high_resolution_clock;
+  using namespace std::literals;
+
+  // Get the remaining time until the next burst of ticks.
+  int64_t bus_residual_time_us = 0;
+  auto old_frame_start = high_resolution_clock::now();
 
   while (!glfwWindowShouldClose(window)) {
     glfwPollEvents();
 
+    auto frame_start = high_resolution_clock::now();
+    auto elapsed_us = std::chrono::duration_cast<std::chrono::microseconds>(
+                          frame_start - old_frame_start)
+                          .count();
+    old_frame_start = frame_start;
+
+    if (bus_residual_time_us > 0) {
+      bus_residual_time_us -= elapsed_us;
+      spdlog::trace("Residual time: {}, elapsed_us = {}", bus_residual_time_us,
+                    elapsed_us);
+    } else {
+      bus_residual_time_us += (1000000 / 60) - elapsed_us;
+
+      // Drain the bus.
+      while (!bus.ppu.frame_complete)
+        bus.tick();
+      // Prepare for the next frame.
+      bus.ppu.frame_complete = false;
+    }
+
+    bus.ppu.frame_complete = false;
+    spdlog::debug("Elapsed {}, FC = {}", bus.elapsed_cycles,
+                  bus.ppu.frame_complete);
+
+    // Blit the screen framebuffer to the GPU.
+    glBindTexture(GL_TEXTURE_2D, screen_texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, nes::ppu::PPU::screen_width,
+                 nes::ppu::PPU::screen_height, 0, GL_RGB, GL_UNSIGNED_BYTE,
+                 (GLubyte *)bus.ppu.screen.data());
+
+    // Initialize a new frame.
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
 

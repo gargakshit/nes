@@ -51,7 +51,7 @@ bool OpcodeTest::run() {
   // Set the pending cycles to zero.
   cpu.pending_cycles = 0;
 
-  // Initialize the memory.
+  // Initialize the wram.
   for (const auto &ram_contents : initial.ram)
     memory[ram_contents.first] = ram_contents.second;
 

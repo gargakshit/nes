@@ -5,17 +5,29 @@
 
 #include "gui.h"
 #include "platform.h"
+#include "ppu.h"
 
 namespace nes::gui {
 const static auto label_color = ImVec4(1.0f, 0.3f, 0.3f, 1.0f);
 auto logger = spdlog::stderr_color_mt("nes::gui");
 
-GUI::GUI(bus::Bus &bus) noexcept : bus(bus) {
+GUI::GUI(bus::Bus &bus, const TextureID &screen_texture) noexcept
+    : bus(bus), screen_texture(screen_texture) {
   logger->debug("Initializing GUI.");
 }
 
 void GUI::render_system_metrics() noexcept {
-  platform::imgui_begin("Bus Metrics");
+  auto now = high_resolution_clock::now();
+  auto difference = now - last_clock_capture;
+
+  using namespace std::literals;
+  if ((difference / 1us) >= 1000000) {
+    elapsed_clocks_second = bus.elapsed_cycles - clocks_second_snapshot;
+    clocks_second_snapshot = bus.elapsed_cycles;
+    last_clock_capture = now;
+  }
+
+  platform::imgui_begin("Metrics");
 
   ImGui::TextColored(label_color, "Cycles");
   ImGui::SameLine();
@@ -24,6 +36,21 @@ void GUI::render_system_metrics() noexcept {
   if (ImGui::Button("Debug: Tick")) {
     bus.tick();
   }
+
+  ImGui::NewLine();
+  auto io = ImGui::GetIO();
+
+  ImGui::TextColored(label_color, "FPS");
+  ImGui::SameLine();
+  ImGui::Text("%f", io.Framerate);
+
+  ImGui::TextColored(label_color, "Speed");
+  ImGui::SameLine();
+  ImGui::Text("%llu Hz", elapsed_clocks_second);
+
+  ImGui::TextColored(label_color, "Frames");
+  ImGui::SameLine();
+  ImGui::Text("%d", ImGui::GetFrameCount());
 
   ImGui::End();
 }
@@ -103,9 +130,21 @@ void GUI::render_cpu_state() noexcept {
   ImGui::End();
 }
 
+void GUI::render_screen() const noexcept {
+  using namespace nes::ppu;
+
+  platform::imgui_begin("Screen (NTSC)");
+
+  ImGui::Image((void *)(intptr_t)screen_texture,
+               ImVec2(PPU::screen_width, PPU::screen_height));
+
+  ImGui::End();
+}
+
 void GUI::render() noexcept {
   render_system_metrics();
   render_cpu_state();
+  render_screen();
 }
 
 GUI::~GUI() noexcept { logger->debug("Destructing the GUI."); }

@@ -1,19 +1,30 @@
 #ifndef NES_GUI_H
 #define NES_GUI_H
 
+#include <chrono>
+
 #include "bus.h"
 
 namespace nes::gui {
+using std::chrono::high_resolution_clock;
+using time_point = std::chrono::high_resolution_clock::time_point;
 using namespace nes;
+using TextureID = uint32_t;
 
 class GUI {
   bus::Bus &bus;
+  const TextureID &screen_texture;
+
+  uint64_t elapsed_clocks_second = 0;
+  uint64_t clocks_second_snapshot = 0;
+  time_point last_clock_capture = high_resolution_clock::now();
 
   void render_cpu_state() noexcept;
   void render_system_metrics() noexcept;
+  void render_screen() const noexcept;
 
 public:
-  GUI(bus::Bus &bus) noexcept;
+  GUI(bus::Bus &bus, const TextureID &screen_texture) noexcept;
   ~GUI() noexcept;
 
   void render() noexcept;
