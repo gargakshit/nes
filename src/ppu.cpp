@@ -200,9 +200,13 @@ void PPU::tick() noexcept {
     // New frame, get ready for the next frame.
     if (scanline == -1 && cycle >= 280 && cycle < 305)
       transfer_y_addr();
-  } else if (scanline == 240) {
+  }
+
+  if (scanline == 240) {
     // Scanline 240 is essentially a NOP (post-render line).
-  } else if (scanline == 241 && cycle == 1) {
+  }
+
+  if (scanline == 241 && cycle == 1) {
     // We started the vblank.
     status.vblank = 1;
     if (control.nmi)
@@ -221,7 +225,7 @@ void PPU::tick() noexcept {
 
     uint8_t palette_lo = (sr_bg_attrib_lo & mux) > 0;
     uint8_t palette_hi = (sr_bg_attrib_hi & mux) > 0;
-    palette = (palette_hi << 1) | (palette_lo);
+    palette = (palette_hi << 1) | palette_lo;
   }
 
   // Time to draw.
@@ -230,12 +234,8 @@ void PPU::tick() noexcept {
 
   if (x >= 0 && x < 256 && y >= 0 && y < 240) {
     // Yes.
-    auto index = ((y * 256) + x) * 3;
-    auto color_idx = get_palette_idx(palette, pixel);
-
-    screen[index + 0] = colors[color_idx + 0];
-    screen[index + 1] = colors[color_idx + 1];
-    screen[index + 2] = colors[color_idx + 2];
+    auto index = (y * 256) + x;
+    screen[y * 256 + x] = get_color(palette, pixel);
   }
 
   cycle++;
@@ -250,12 +250,12 @@ void PPU::tick() noexcept {
   }
 }
 
-size_t PPU::get_palette_idx(size_t index, uint8_t pixel) const noexcept {
+size_t PPU::get_color(size_t index, uint8_t pixel) const noexcept {
   // Palettes have 4 entries. palette << 2 == palette * 4.
-  return (ppu_read(0x3f00 + (index << 2) + pixel) & 0x3f) * 3;
+  return colors[ppu_read(0x3f00 + (index << 2) + pixel) & 0x3f];
 }
 
-std::array<uint8_t, 128 * 128 * 3> PPU::pattern_table(uint8_t index) noexcept {
+std::array<uint32_t, 128 * 128> PPU::pattern_table(uint8_t index) noexcept {
   auto table = rendered_pattern_tables[index & 0x1];
 
   for (uint16_t tile_y = 0; tile_y < 16; tile_y++) {
@@ -275,14 +275,10 @@ std::array<uint8_t, 128 * 128 * 3> PPU::pattern_table(uint8_t index) noexcept {
           hi >>= 1;
 
           auto pixel_idx =
-              (((tile_y * 8 + row) * 128) + (tile_x * 8 + (7 - col))) * 3;
+              ((tile_y * 8 + row) * 128) + (tile_x * 8 + (7 - col));
 
           const static auto palette = 4;
-          auto color_idx = get_palette_idx(palette, pixel);
-
-          table[pixel_idx + 0] = colors[color_idx + 0];
-          table[pixel_idx + 1] = colors[color_idx + 1];
-          table[pixel_idx + 2] = colors[color_idx + 2];
+          table[pixel_idx] = get_color(palette, pixel);
         }
       }
     }
@@ -291,15 +287,10 @@ std::array<uint8_t, 128 * 128 * 3> PPU::pattern_table(uint8_t index) noexcept {
   return table;
 }
 
-std::array<uint8_t, 8 * 4 * 3> PPU::get_rendered_palettes() noexcept {
+std::array<uint32_t, 8 * 4> PPU::get_rendered_palettes() noexcept {
   for (uint8_t i = 0; i < 8; i++) {
     for (uint8_t pixel = 0; pixel < 4; pixel++) {
-      auto index = (i * 4 + pixel) * 3;
-      auto color_idx = get_palette_idx(i, pixel);
-
-      rendered_palettes[index + 0] = colors[color_idx + 0];
-      rendered_palettes[index + 1] = colors[color_idx + 1];
-      rendered_palettes[index + 2] = colors[color_idx + 2];
+      rendered_palettes[i * 4 + pixel] = get_color(i, pixel);
     }
   }
 

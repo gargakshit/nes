@@ -14,13 +14,12 @@ Image::Image() noexcept {
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 }
 
-void Image::set_data(const GLubyte *data, int width,
-                     int height) const noexcept {
+void Image::set_data(const GLuint *data, int width, int height) const noexcept {
   // Bind the texture.
   glBindTexture(GL_TEXTURE_2D, texture);
   // Blit the image to the texture.
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB,
-               GL_UNSIGNED_BYTE, data);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA,
+               GL_UNSIGNED_INT_8_8_8_8, data);
 }
 
 ImTextureID Image::imgui_image() const noexcept {

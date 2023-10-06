@@ -13,11 +13,11 @@ class Image {
 public:
   Image() noexcept;
 
-  void set_data(const GLubyte *data, int width, int height) const noexcept;
+  void set_data(const GLuint *data, int width, int height) const noexcept;
   template <size_t size>
-  void set_data(std::array<uint8_t, size> data, int width,
+  void set_data(std::array<uint32_t, size> data, int width,
                 int height) const noexcept {
-    set_data((GLubyte *)data.data(), width, height);
+    set_data((GLuint *)data.data(), width, height);
   }
 
   [[nodiscard]] ImTextureID imgui_image() const noexcept;

@@ -739,9 +739,9 @@ void CPU::tick() noexcept {
 }
 
 void CPU::irq() noexcept {
-  logger->trace("External IRQ received.");
+  logger->debug("External IRQ received.");
   if (!status.I) {
-    logger->trace("Ignoring external IRQ (p.i is set)");
+    logger->debug("Ignoring external IRQ (p.i is set)");
     return;
   }
 
@@ -750,7 +750,7 @@ void CPU::irq() noexcept {
 }
 
 void CPU::nmi() noexcept {
-  logger->trace("External NMI received.");
+  logger->debug("External NMI received.");
   interrupt(0xFFFA);
   pending_cycles += 8;
 }

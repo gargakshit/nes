@@ -39,7 +39,7 @@ union Mask {
 
 union Status {
   struct {
-    uint8_t unused : 5;
+    uint8_t _ : 5;
     uint8_t sprite_overflow : 1;
     uint8_t sprite_0_hit : 1;
     uint8_t vblank : 1;
@@ -82,29 +82,27 @@ class PPU : public Registers {
   std::array<uint8_t, 256> oam_memory{};
 
   // 64 NES colors stored as RGB.
-  constexpr const static std::array<uint8_t, 64 * 3> colors{
-      84,  84,  84,  0,   30,  116, 8,   16,  144, 48,  0,   136, 68,  0,   100,
-      92,  0,   48,  84,  4,   0,   60,  24,  0,   32,  42,  0,   8,   58,  0,
-      0,   64,  0,   0,   60,  0,   0,   50,  60,  0,   0,   0,   0,   0,   0,
-      0,   0,   0,   152, 150, 152, 8,   76,  196, 48,  50,  236, 92,  30,  228,
-      136, 20,  176, 160, 20,  100, 152, 34,  32,  120, 60,  0,   84,  90,  0,
-      40,  114, 0,   8,   124, 0,   0,   118, 40,  0,   102, 120, 0,   0,   0,
-      0,   0,   0,   0,   0,   0,   236, 238, 236, 76,  154, 236, 120, 124, 236,
-      176, 98,  236, 228, 84,  236, 236, 88,  180, 236, 106, 100, 212, 136, 32,
-      160, 170, 0,   116, 196, 0,   76,  208, 32,  56,  204, 108, 56,  180, 204,
-      60,  60,  60,  0,   0,   0,   0,   0,   0,   236, 238, 236, 168, 204, 236,
-      188, 188, 236, 212, 178, 236, 236, 174, 236, 236, 174, 212, 236, 180, 176,
-      228, 196, 144, 204, 210, 120, 180, 222, 120, 168, 226, 144, 152, 226, 180,
-      160, 214, 228, 160, 162, 160, 0,   0,   0,   0,   0,   0};
+  constexpr const static std::array<uint32_t, 64> colors{
+      0x626262FF, 0x001FB2FF, 0x2404C8FF, 0x5200B2FF, 0x730076FF, 0x800024FF,
+      0x730B00FF, 0x522800FF, 0x244400FF, 0x005700FF, 0x005C00FF, 0x005324FF,
+      0x003C76FF, 0x000000FF, 0x000000FF, 0x000000FF, 0xABABABFF, 0x0D57FFFF,
+      0x4B30FFFF, 0x8A13FFFF, 0xBC08D6FF, 0xD21269FF, 0xC72E00FF, 0x9D5400FF,
+      0x607B00FF, 0x209800FF, 0x00A300FF, 0x009942FF, 0x007DB4FF, 0x000000FF,
+      0x000000FF, 0x000000FF, 0xFFFFFFFF, 0x53AEFFFF, 0x9085FFFF, 0xD365FFFF,
+      0xFF57FFFF, 0xFF5DCFFF, 0xFF7757FF, 0xFA9E00FF, 0xBDC700FF, 0x7AE700FF,
+      0x43F611FF, 0x26EF7EFF, 0x2CD5F6FF, 0x4E4E4EFF, 0x000000FF, 0x000000FF,
+      0xFFFFFFFF, 0xB6E1FFFF, 0xCED1FFFF, 0xE9C3FFFF, 0xFFBCFFFF, 0xFFBDF4FF,
+      0xFFC6C3FF, 0xFFD59AFF, 0xE9E681FF, 0xCEF481FF, 0xB6FB9AFF, 0xA9FAC3FF,
+      0xA9F0F4FF, 0xB8B8B8FF, 0x000000FF, 0x000000FF};
 
   std::shared_ptr<cart::Cart> cart;
 
-  size_t get_palette_idx(size_t index, uint8_t pixel) const noexcept;
+  size_t get_color(size_t index, uint8_t pixel) const noexcept;
 
-  std::array<std::array<uint8_t, 128 * 128 * 3>, 2> rendered_pattern_tables{};
+  std::array<std::array<uint32_t, 128 * 128>, 2> rendered_pattern_tables{};
   // 8 palettes, 4 colors, 3 channels. Use GL NEAREST_NEIGHBOUR to upscale. I
   // can't spare more CPU cycles on rendering debug information.
-  std::array<uint8_t, 8 * 4 * 3> rendered_palettes{};
+  std::array<uint32_t, 8 * 4> rendered_palettes{};
 
   // We will use the PPU frame timing diagram as a reference.
   // https://www.nesdev.org/w/images/default/4/4f/Ppu.svg
@@ -116,7 +114,8 @@ class PPU : public Registers {
   uint8_t bg_next_tile_lo = 0;
   uint8_t bg_next_tile_hi = 0;
 
-  // See https://www.nesdev.org/wiki/PPU_rendering#:~:text=contains%20the%20following%3A-,Background,-VRAM%20address%2C%20temporary
+  // See
+  // https://www.nesdev.org/wiki/PPU_rendering#:~:text=contains%20the%20following%3A-,Background,-VRAM%20address%2C%20temporary
 
   uint16_t sr_bg_pattern_lo = 0;
   uint16_t sr_bg_pattern_hi = 0;
@@ -129,8 +128,8 @@ public:
 
   bool nmi = false;
 
-  // 256px width, 240px height, 3 channels.
-  std::array<uint8_t, screen_width * screen_height * 3> screen{};
+  // 256px width, 240px height.
+  std::array<uint32_t, screen_width * screen_height> screen{};
   bool frame_complete = false;
 
   explicit PPU(std::shared_ptr<cart::Cart> cart) noexcept;
@@ -138,8 +137,8 @@ public:
 
   void tick() noexcept;
 
-  std::array<uint8_t, 128 * 128 * 3> pattern_table(uint8_t index) noexcept;
-  std::array<uint8_t, 8 * 4 * 3> get_rendered_palettes() noexcept;
+  std::array<uint32_t, 128 * 128> pattern_table(uint8_t index) noexcept;
+  std::array<uint32_t, 8 * 4> get_rendered_palettes() noexcept;
 
   void bus_write(uint16_t addr, uint8_t val) noexcept;
   uint8_t bus_read(uint16_t addr) noexcept;
