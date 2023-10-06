@@ -51,4 +51,8 @@ bool MMC0::should_ppu_write(uint16_t addr, uint16_t &mapped) {
   mapped = addr;
   return true;
 }
+
+MMC0::~MMC0() noexcept {
+  mmc0::logger->info("Destructed the mapper");
+}
 } // namespace nes::cart::mappers

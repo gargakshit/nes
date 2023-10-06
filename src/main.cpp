@@ -39,7 +39,7 @@ static void glfw_error_callback(int error, const char *description) {
 int main([[maybe_unused]] const int argc, [[maybe_unused]] const char **argv) {
   setup_spdlog();
 
-  auto loaded_cart = cart::load("carts/demo.nes");
+  auto loaded_cart = cart::load("carts/nestest.nes");
   if (!loaded_cart) {
     return 1;
   }
@@ -117,21 +117,7 @@ int main([[maybe_unused]] const int argc, [[maybe_unused]] const char **argv) {
 
   GLuint screen_texture;
 
-  // Generate and bind the screen texture.
-  glGenTextures(1, &screen_texture);
-  glBindTexture(GL_TEXTURE_2D, screen_texture);
-
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, nes::ppu::PPU::screen_width,
-               nes::ppu::PPU::screen_height, 0, GL_RGB, GL_UNSIGNED_BYTE,
-               (GLubyte *)bus.ppu.screen.data());
-
-  spdlog::info("screen_texture = {}", screen_texture);
-  gui::GUI gui(bus, screen_texture);
+  gui::GUI gui(bus);
 
   auto clear_color = ImVec4(0.024f, 0.024f, 0.03f, 1.00f);
 
@@ -168,12 +154,6 @@ int main([[maybe_unused]] const int argc, [[maybe_unused]] const char **argv) {
     bus.ppu.frame_complete = false;
     spdlog::debug("Elapsed {}, FC = {}", bus.elapsed_cycles,
                   bus.ppu.frame_complete);
-
-    // Blit the screen framebuffer to the GPU.
-    glBindTexture(GL_TEXTURE_2D, screen_texture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, nes::ppu::PPU::screen_width,
-                 nes::ppu::PPU::screen_height, 0, GL_RGB, GL_UNSIGNED_BYTE,
-                 (GLubyte *)bus.ppu.screen.data());
 
     // Initialize a new frame.
     ImGui_ImplOpenGL3_NewFrame();

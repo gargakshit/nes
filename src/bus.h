@@ -25,7 +25,7 @@ public:
   // System metrics.
   uint64_t elapsed_cycles = 0;
 
-  explicit Bus(std::shared_ptr<cart::Cart> cart) noexcept;
+  explicit Bus(const std::shared_ptr<cart::Cart>& cart) noexcept;
   ~Bus() noexcept;
 
   // Our "system bus" is essentially a combination of the CPU (main) bus and the

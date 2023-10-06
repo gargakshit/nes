@@ -11,8 +11,9 @@ namespace nes::gui {
 const static auto label_color = ImVec4(1.0f, 0.3f, 0.3f, 1.0f);
 auto logger = spdlog::stderr_color_mt("nes::gui");
 
-GUI::GUI(bus::Bus &bus, const TextureID &screen_texture) noexcept
-    : bus(bus), screen_texture(screen_texture) {
+GUI::GUI(bus::Bus &bus) noexcept
+    : bus(bus), screen(image::Image()), pattern_table_left(image::Image()),
+      pattern_table_right(image::Image()) {
   logger->debug("Initializing GUI.");
 }
 
@@ -130,14 +131,34 @@ void GUI::render_cpu_state() noexcept {
   ImGui::End();
 }
 
+void GUI::render_ppu_state() noexcept {
+  pattern_table_left.set_data(bus.ppu.pattern_table(0), 128, 128);
+  pattern_table_right.set_data(bus.ppu.pattern_table(1), 128, 128);
+
+  platform::imgui_begin("PPU State");
+
+  const static auto patterntable_resolution = ImVec2(
+      128 * display_resolution_multiplier, 128 * display_resolution_multiplier);
+
+  ImGui::TextColored(label_color, "Patterntable 0");
+  ImGui::Image(pattern_table_left.imgui_image(), patterntable_resolution);
+
+  ImGui::TextColored(label_color, "Patterntable  1");
+  ImGui::Image(pattern_table_right.imgui_image(), patterntable_resolution);
+
+  ImGui::End();
+}
+
 void GUI::render_screen() const noexcept {
   using namespace nes::ppu;
 
+  screen.set_data(bus.ppu.screen, PPU::screen_width, PPU::screen_height);
+  const static auto size =
+      ImVec2(PPU::screen_width * display_resolution_multiplier,
+             PPU::screen_height * display_resolution_multiplier);
+
   platform::imgui_begin("Screen (NTSC)");
-
-  ImGui::Image((void *)(intptr_t)screen_texture,
-               ImVec2(PPU::screen_width, PPU::screen_height));
-
+  ImGui::Image(screen.imgui_image(), size);
   ImGui::End();
 }
 
@@ -145,6 +166,7 @@ void GUI::render() noexcept {
   render_system_metrics();
   render_cpu_state();
   render_screen();
+  render_ppu_state();
 }
 
 GUI::~GUI() noexcept { logger->debug("Destructing the GUI."); }

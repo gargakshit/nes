@@ -99,7 +99,7 @@ select_mapper(uint8_t id, uint8_t num_prg_chunks,
 
 std::optional<std::shared_ptr<Cart>>
 load(const std::string &file_path) noexcept {
-  std::ifstream file(file_path);
+  std::ifstream file(file_path, std::ios::binary);
   if (!file) {
     logger->error("Unable to open the cart from {}", file_path);
     file.close();

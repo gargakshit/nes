@@ -10,8 +10,8 @@ auto logger = spdlog::stderr_color_mt("nes::bus");
 
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "modernize-avoid-bind"
-Bus::Bus(std::shared_ptr<cart::Cart> cart) noexcept
-    : wram(std::array<uint8_t, wram_size>()), cart(std::move(cart)),
+Bus::Bus(const std::shared_ptr<cart::Cart> &cart) noexcept
+    : wram(std::array<uint8_t, wram_size>()), cart(cart),
       cpu(cpu::CPU(std::bind(&Bus::read, this, std::placeholders::_1),
                    std::bind(&Bus::write, this, std::placeholders::_1,
                              std::placeholders::_2))),
@@ -31,7 +31,7 @@ uint8_t Bus::read(uint16_t address) noexcept {
 
   switch (address) {
   case 0x0000 ... 0x1fff: return wram[address & 0x07ff];
-  case 0x2000 ... 0x3fff: return ppu.bus_read(address);
+  case 0x2000 ... 0x3fff: return ppu.bus_read(address & 0x7);
   default: logger->trace("Ignoring read from {:#06x}", address); return 0;
   }
 }
@@ -44,7 +44,7 @@ void Bus::write(uint16_t address, uint8_t value) noexcept {
 
   switch (address) {
   case 0x0000 ... 0x1fff: wram[address & 0x07ff] = value; break;
-  case 0x2000 ... 0x3fff: ppu.bus_write(address, value); break;
+  case 0x2000 ... 0x3fff: ppu.bus_write(address & 0x7, value); break;
   default: logger->trace("Ignoring write to {:#06x}", address); break;
   }
 }

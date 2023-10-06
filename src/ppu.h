@@ -9,11 +9,75 @@
 namespace nes::ppu {
 using namespace nes;
 
-class PPU {
+union Control {
+  struct {
+    uint8_t nametable_x : 1;
+    uint8_t nametable_y : 1;
+    uint8_t vram_increment_mode : 1;
+    uint8_t sprite_pattern_table : 1;
+    uint8_t background_pattern_table : 1;
+    uint8_t sprite_size : 1;
+    uint8_t slave_mode : 1;
+    uint8_t nmi : 1;
+  };
+  uint8_t reg;
+};
+
+union Mask {
+  struct {
+    uint8_t grayscale : 1;
+    uint8_t left_sprite : 1;
+    uint8_t left_background : 1;
+    uint8_t show_background : 1;
+    uint8_t show_sprites : 1;
+    uint8_t emp_red : 1;
+    uint8_t emp_green : 1;
+    uint8_t emp_blue : 1;
+  };
+  uint8_t reg;
+};
+
+union Status {
+  struct {
+    uint8_t unused : 5;
+    uint8_t sprite_overflow : 1;
+    uint8_t sprite_0_hit : 1;
+    uint8_t vblank : 1;
+  };
+  uint8_t reg;
+};
+
+union InternalRendering {
+  struct {
+    uint16_t coarse_x_scroll : 5;
+    uint16_t coarse_y_scroll : 5;
+    uint16_t nametable_x : 1;
+    uint16_t nametable_y : 1;
+    uint16_t fine_y_scroll : 3;
+    uint16_t _ : 1;
+  };
+  uint16_t reg;
+};
+
+struct Registers {
+  Control control;
+  Mask mask;
+  Status status;
+  InternalRendering active_rendering;
+  InternalRendering temp_rendering;
+};
+
+class PPU : public Registers {
   int16_t scanline = 0;
   int16_t cycle = 0;
 
+  uint8_t data_buffer = 0;
+  uint8_t address_latch = 0;
+  uint8_t scroll_fine_x = 0;
+  uint16_t address = 0;
+
   std::array<std::array<uint8_t, 1024>, 2> nametables{};
+  std::array<std::array<uint8_t, 4096>, 2> pattern{};
   std::array<uint8_t, 32> palette_memory{};
   std::array<uint8_t, 256> oam_memory{};
 
@@ -35,6 +99,8 @@ class PPU {
 
   std::shared_ptr<cart::Cart> cart;
 
+  std::array<std::array<uint8_t, 128 * 128 * 3>, 2> rendered_pattern_tables{};
+
 public:
   const static auto screen_width = 256;
   const static auto screen_height = 240;
@@ -47,6 +113,8 @@ public:
   ~PPU() noexcept;
 
   void tick() noexcept;
+
+  std::array<uint8_t, 128 * 128 * 3> pattern_table(uint8_t index) noexcept;
 
   void bus_write(uint16_t addr, uint8_t val) noexcept;
   uint8_t bus_read(uint16_t addr) noexcept;
