@@ -20,6 +20,7 @@ class GUI {
   image::Image screen;
   image::Image pattern_table_left;
   image::Image pattern_table_right;
+  image::Image rendered_palette;
 
   uint64_t elapsed_clocks_second = 0;
   uint64_t clocks_second_snapshot = 0;

@@ -56,6 +56,11 @@ void Bus::tick() noexcept {
   if (elapsed_cycles % 3 == 0)
     cpu.tick();
 
+  if (ppu.nmi) {
+    ppu.nmi = false;
+    cpu.nmi();
+  }
+
   elapsed_cycles++;
 }
 

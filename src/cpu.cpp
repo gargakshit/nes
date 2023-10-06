@@ -738,22 +738,21 @@ void CPU::tick() noexcept {
   pending_cycles--;
 }
 
-uint8_t CPU::irq() noexcept {
+void CPU::irq() noexcept {
   logger->trace("External IRQ received.");
   if (!status.I) {
     logger->trace("Ignoring external IRQ (p.i is set)");
-    return 0;
+    return;
   }
 
   interrupt(0xFFFE);
-  return pending_cycles;
+  pending_cycles += 7;
 }
 
-uint8_t CPU::nmi() noexcept {
+void CPU::nmi() noexcept {
   logger->trace("External NMI received.");
   interrupt(0xFFFA);
-
-  return pending_cycles;
+  pending_cycles += 8;
 }
 
 CPU::~CPU() noexcept { logger->trace("Destructed the CPU."); }

@@ -106,12 +106,10 @@ public:
   // Simulate a clock tick. Maybe a NOP depending on the number of pending
   // cycles.
   void tick() noexcept;
-  // Send an interrupt request. Maybe ignored based on status.I. It will drain
-  // the pending cycles and will return the number of cycles drained.
-  uint8_t irq() noexcept;
-  // Send a non-maskable interrupt. Will never be ignored. It will drain the
-  // pending cycles and will return the number of cycles drained.
-  uint8_t nmi() noexcept;
+  // Send an interrupt request.
+  void irq() noexcept;
+  // Send a non-maskable interrupt.
+  void nmi() noexcept;
 };
 } // namespace nes::cpu
 

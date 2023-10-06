@@ -13,7 +13,7 @@ auto logger = spdlog::stderr_color_mt("nes::gui");
 
 GUI::GUI(bus::Bus &bus) noexcept
     : bus(bus), screen(image::Image()), pattern_table_left(image::Image()),
-      pattern_table_right(image::Image()) {
+      pattern_table_right(image::Image()), rendered_palette(image::Image()) {
   logger->debug("Initializing GUI.");
 }
 
@@ -34,11 +34,6 @@ void GUI::render_system_metrics() noexcept {
   ImGui::SameLine();
   ImGui::Text("%llu", bus.elapsed_cycles);
 
-  if (ImGui::Button("Debug: Tick")) {
-    bus.tick();
-  }
-
-  ImGui::NewLine();
   auto io = ImGui::GetIO();
 
   ImGui::TextColored(label_color, "FPS");
@@ -134,6 +129,7 @@ void GUI::render_cpu_state() noexcept {
 void GUI::render_ppu_state() noexcept {
   pattern_table_left.set_data(bus.ppu.pattern_table(0), 128, 128);
   pattern_table_right.set_data(bus.ppu.pattern_table(1), 128, 128);
+  rendered_palette.set_data(bus.ppu.get_rendered_palettes(), 16, 2);
 
   platform::imgui_begin("PPU State");
 
@@ -143,8 +139,13 @@ void GUI::render_ppu_state() noexcept {
   ImGui::TextColored(label_color, "Patterntable 0");
   ImGui::Image(pattern_table_left.imgui_image(), patterntable_resolution);
 
-  ImGui::TextColored(label_color, "Patterntable  1");
+  ImGui::TextColored(label_color, "Patterntable 1");
   ImGui::Image(pattern_table_right.imgui_image(), patterntable_resolution);
+
+  ImGui::TextColored(label_color, "Palette");
+  ImGui::Image(rendered_palette.imgui_image(),
+               ImVec2(16 * 8 * display_resolution_multiplier,
+                      2 * 8 * display_resolution_multiplier));
 
   ImGui::End();
 }

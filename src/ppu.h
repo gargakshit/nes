@@ -3,6 +3,7 @@
 
 #include <array>
 #include <memory>
+#include <span>
 
 #include "cart.h"
 
@@ -99,11 +100,18 @@ class PPU : public Registers {
 
   std::shared_ptr<cart::Cart> cart;
 
+  size_t get_palette_idx(size_t index, uint8_t pixel);
+
   std::array<std::array<uint8_t, 128 * 128 * 3>, 2> rendered_pattern_tables{};
+  // 8 palettes, 4 colors, 3 channels. Use GL NEAREST_NEIGHBOUR to upscale. I
+  // can't spare more CPU cycles on rendering debug information.
+  std::array<uint8_t, 8 * 4 * 3> rendered_palettes;
 
 public:
   const static auto screen_width = 256;
   const static auto screen_height = 240;
+
+  bool nmi = false;
 
   // 256px width, 240px height, 3 channels.
   std::array<uint8_t, screen_width * screen_height * 3> screen{};
@@ -115,6 +123,7 @@ public:
   void tick() noexcept;
 
   std::array<uint8_t, 128 * 128 * 3> pattern_table(uint8_t index) noexcept;
+  std::array<uint8_t, 8 * 4 * 3> get_rendered_palettes() noexcept;
 
   void bus_write(uint16_t addr, uint8_t val) noexcept;
   uint8_t bus_read(uint16_t addr) noexcept;
