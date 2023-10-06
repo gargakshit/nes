@@ -1,4 +1,3 @@
-#include <spdlog/fmt/bin_to_hex.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
 
@@ -14,21 +13,229 @@ PPU::PPU(std::shared_ptr<cart::Cart> cart) noexcept : cart(std::move(cart)) {
 void PPU::tick() noexcept {
   logger->trace("Tick.");
 
-  if (cycle < screen_width && scanline < screen_height && scanline >= 0) {
-    auto screen_idx = ((scanline * screen_width) + cycle) * 3;
-    auto color_idx = (rand() % 2 ? 0x3f : 0x30) * 3; // Don't ask me, its noise.
+  // https://www.nesdev.org/wiki/PPU_scrolling is your friend.
+  // And bless C++ lambdas... for existing...
 
-    screen[screen_idx + 0] = colors[color_idx + 0];
-    screen[screen_idx + 1] = colors[color_idx + 1];
-    screen[screen_idx + 2] = colors[color_idx + 2];
-  }
+  auto increment_coarse_x = [&]() {
+    if (!mask.show_background && !mask.show_sprites) {
+      return;
+    }
 
-  if (scanline == 241 && cycle == 1) {
+    if (v.coarse_x == 31) {
+      // We overflowed. Time to reset.
+      v.coarse_x = 0;
+      // And switch nametables.
+      v.nametable_x = ~v.nametable_x;
+    } else {
+      v.coarse_x++;
+    }
+  };
+
+  auto increment_y = [&]() {
+    if (!mask.show_background && !mask.show_sprites) {
+      return;
+    }
+
+    if (v.fine_y < 7) {
+      // We can get-by by incrementing the fine y value.
+      v.fine_y++;
+    } else {
+      // Set fine_y to zero.
+      v.fine_y = 0;
+
+      if (v.coarse_y == 29) {
+        // Remember we have 30 tiles (30 * 8 = 240 dots) in the y direction.
+        v.coarse_y = 0;
+        // Switching the vertical nametable.
+        v.nametable_y = ~v.nametable_y;
+      } else if (v.coarse_y == 31) {
+        // How did the coarse_y overflow in the attribute memory?
+        v.coarse_y = 0;
+      } else {
+        // Ugh increment.
+        v.coarse_y++;
+      }
+    }
+  };
+
+  auto transfer_x_addr = [&]() {
+    if (!mask.show_background && !mask.show_sprites) {
+      return;
+    }
+
+    v.coarse_x = t.coarse_x;
+    v.nametable_x = t.nametable_x;
+  };
+
+  auto transfer_y_addr = [&]() {
+    if (!mask.show_background && !mask.show_sprites) {
+      return;
+    }
+
+    v.fine_y = t.fine_y;
+    v.coarse_y = t.coarse_y;
+    v.nametable_y = t.nametable_y;
+  };
+
+  auto load_sr_bg = [&]() {
+    sr_bg_pattern_lo = (sr_bg_pattern_lo & 0xff00) | bg_next_tile_lo;
+    sr_bg_pattern_hi = (sr_bg_pattern_hi & 0xff00) | bg_next_tile_hi;
+
+    // Ummm inflation. We just saved some computation here.
+    sr_bg_attrib_lo =
+        (sr_bg_attrib_lo & 0xff00) | ((bg_next_attrib & 0b01) ? 0xff : 0x00);
+    sr_bg_attrib_hi =
+        (sr_bg_attrib_hi & 0xff00) | ((bg_next_attrib & 0b10) ? 0xff : 0x00);
+  };
+
+  auto update_sr_bg = [&]() {
+    if (!mask.show_background) {
+      return;
+    }
+
+    sr_bg_pattern_lo <<= 1;
+    sr_bg_pattern_hi <<= 1;
+
+    sr_bg_attrib_lo <<= 1;
+    sr_bg_attrib_hi <<= 1;
+  };
+
+  // Visible scanlines.
+
+  if (scanline >= -1 && scanline < 240) {
+    if (scanline == 0 && cycle == 0) {
+      // Skip the "odd frame". This is essentially the same as time compression
+      // without actually affecting the rendering. There is a reason we jump
+      // back to cycle 0 and scanline -1.
+      // Also RIP branch predictor.
+      cycle = 1;
+    }
+
+    if (scanline == -1 && cycle == 1) {
+      // New frame. I ain't in the vblank no more.
+      status.vblank = 0;
+    }
+
+    // Essentially skipping the HBLANK now.
+    if ((cycle >= 2 && cycle < 258) || (cycle >= 321 && cycle < 338)) {
+      update_sr_bg();
+
+      // Let's synchronize to the NES PPU timings.
+      switch ((cycle - 1) & 0x07) {
+      case 0: {
+        load_sr_bg();
+        // Cycle zero means we are in a new coarse x / y. To get the next tile
+        // ID, we read from 0x2000 (nametable base) + (v.reg's first 12 bits).
+        // v.reg's first 12 bits are (bless loopy)
+        //  offset = (coarse_x <> coarse_y <> nametable_x <> nametable_y).
+        // 0x2000 + offset. Remember we have nametable mirroring set-up. This
+        // will give the whole tile ID. Pretty clever!
+        bg_next_tile_id = ppu_read(0x2000 | (v.reg & 0x0fff));
+      } break;
+
+      case 1: break;
+
+      case 2: {
+        // 0x03c0 is where the attribute memory starts in a nametable. So we
+        // just get the nametable address from the "v" register, divide coarse
+        // values by 4 (remember you can have 64 attributes) per nametable, and
+        // a 4x4 tile grid will have the same attribute. This is some clever
+        // bitwise trickery.
+        bg_next_attrib =
+            ppu_read(0x23c0 | (v.nametable_y << 11) | (v.nametable_x << 10) |
+                     ((v.coarse_y >> 2) << 3) | (v.coarse_x >> 2));
+
+        // We read an 8-bit value. Remember we can have 4 active palettes for
+        // the background. That means, each palette is 2-bit, and the attribute
+        // is further split into 2x2 tile groups with the same palette. NES was
+        // a good system.
+
+        // Some more bitwise trickery.
+        // We essentially need to swizzle the attribute into the correct order.
+        // Tiles are 2D, and palette IDs are not in-order inside the attribute
+        // memory.
+
+        if (v.coarse_y & 0x02)
+          bg_next_attrib >>= 4;
+        if (v.coarse_x & 0x02)
+          bg_next_attrib >>= 2;
+        bg_next_attrib &= 0x03;
+      } break;
+
+      case 3: break;
+
+      case 4: {
+        // Fetch the lo-bit plane. This should be easy to understand, I guess.
+        bg_next_tile_lo = ppu_read((control.background_pattern_table << 12) +
+                                   ((uint16_t)bg_next_tile_id << 4) + v.fine_y);
+      } break;
+
+      case 5: break;
+
+      case 6: {
+        // Fetch the hi-bit plane.
+        bg_next_tile_hi =
+            ppu_read((control.background_pattern_table << 12) +
+                     ((uint16_t)bg_next_tile_id << 4) + v.fine_y + 8);
+      } break;
+
+      case 7: increment_coarse_x(); break;
+      }
+    }
+
+    // Increment the y on the end of a scanline.
+    if (cycle == 256)
+      increment_y();
+
+    // Time to reset some stuff.
+    if (cycle == 257) {
+      load_sr_bg();
+      transfer_x_addr();
+    }
+
+    // I love random hardware behaviours.
+    if (cycle == 338 || cycle == 340)
+      bg_next_tile_id = ppu_read(0x2000 | (v.reg & 0x0FFF));
+
+    // New frame, get ready for the next frame.
+    if (scanline == -1 && cycle >= 280 && cycle < 305)
+      transfer_y_addr();
+  } else if (scanline == 240) {
+    // Scanline 240 is essentially a NOP (post-render line).
+  } else if (scanline == 241 && cycle == 1) {
     // We started the vblank.
     status.vblank = 1;
-    if (control.nmi) {
+    if (control.nmi)
       nmi = true;
-    }
+  }
+
+  uint8_t pixel = 0;   // The pixel (2b).
+  uint8_t palette = 0; // Palette ID (3b).
+
+  if (mask.show_background) {
+    uint16_t mux = 0x8000 >> fine_x;
+
+    uint8_t pixel_lo = (sr_bg_attrib_lo & mux) > 0;
+    uint8_t pixel_hi = (sr_bg_attrib_hi & mux) > 0;
+    pixel = (pixel_hi << 1) | pixel_lo;
+
+    uint8_t palette_lo = (sr_bg_attrib_lo & mux) > 0;
+    uint8_t palette_hi = (sr_bg_attrib_hi & mux) > 0;
+    palette = (palette_hi << 1) | (palette_lo);
+  }
+
+  // Time to draw.
+  auto x = cycle - 1;
+  auto y = scanline;
+
+  if (x >= 0 && x < 256 && y >= 0 && y < 240) {
+    // Yes.
+    auto index = ((y * 256) + x) * 3;
+    auto color_idx = get_palette_idx(palette, pixel);
+
+    screen[index + 0] = colors[color_idx + 0];
+    screen[index + 1] = colors[color_idx + 1];
+    screen[index + 2] = colors[color_idx + 2];
   }
 
   cycle++;
@@ -43,7 +250,7 @@ void PPU::tick() noexcept {
   }
 }
 
-size_t PPU::get_palette_idx(size_t index, uint8_t pixel) {
+size_t PPU::get_palette_idx(size_t index, uint8_t pixel) const noexcept {
   // Palettes have 4 entries. palette << 2 == palette * 4.
   return (ppu_read(0x3f00 + (index << 2) + pixel) & 0x3f) * 3;
 }
@@ -119,16 +326,13 @@ uint8_t PPU::bus_read(uint16_t addr) noexcept {
   case 0x07: {
     // Reads are delayed by one cycle (???).
     uint8_t data = data_buffer;
-    //    data_buffer = ppu_read(active_rendering.reg);
-    data_buffer = ppu_read(address);
+    //    data_buffer = ppu_read(v.reg);
+    data_buffer = ppu_read(v.reg);
     // Except when we read the palette.
-    //    if (active_rendering.reg >= 0x3f00)
-    //      data = data_buffer;
-    if (address >= 0x3f00)
+    if (v.reg >= 0x3f00)
       data = data_buffer;
     // All reads increment the active address by 1 or 32 depending on the mode.
-    active_rendering.reg += control.vram_increment_mode ? 32 : 1;
-    address += 1;
+    v.reg += control.vram_increment_mode ? 32 : 1;
     return data;
   } break; // PPU data.
   default: break;
@@ -141,35 +345,47 @@ void PPU::bus_write(uint16_t addr, uint8_t val) noexcept {
   switch (addr) {
   case 0x00: {
     control.reg = val;
-    temp_rendering.nametable_x = control.nametable_x;
-    temp_rendering.nametable_y = control.nametable_y;
+    t.nametable_x = control.nametable_x;
+    t.nametable_y = control.nametable_y;
   } break;                          // Control.
   case 0x01: mask.reg = val; break; // Mask.
   case 0x02: break;                 // Status.
   case 0x03: break;                 // OAM address.
   case 0x04: break;                 // OAM data.
+
   case 0x05: {
-  } break; // Scroll.
-  case 0x06: {
     if (address_latch == 0) {
-      address = (address & 0x00ff) | (((uint16_t)val) << 8);
+      fine_x = val & 0x07;
+      t.coarse_x = val >> 3;
       address_latch = 1;
     } else {
-      address = (address & 0xff00) | val;
+      t.fine_y = val & 0x07;
+      t.coarse_y = val >> 3;
+      address_latch = 0;
+    }
+  } break; // Scroll.
+
+  case 0x06: {
+    if (address_latch == 0) {
+      t.reg = (t.reg & 0x00ff) | (((uint16_t)val) << 8);
+      address_latch = 1;
+    } else {
+      t.reg = (t.reg & 0xff00) | val;
+      v.reg = t.reg;
       address_latch = 0;
     }
   } break; // PPU address.
+
   case 0x07: {
-    ppu_write(address, val);
-    address += 1;
+    ppu_write(v.reg, val);
     // All reads increment the active address by 1 or 32 depending on the mode.
-    active_rendering.reg += control.vram_increment_mode ? 32 : 1;
+    v.reg += control.vram_increment_mode ? 32 : 1;
   } break; // PPU data.
   default: break;
   }
 }
 
-uint8_t PPU::ppu_read(uint16_t address) noexcept {
+uint8_t PPU::ppu_read(uint16_t address) const noexcept {
   uint8_t data = 0;
   auto addr = address & 0x3fff;
 
@@ -177,7 +393,19 @@ uint8_t PPU::ppu_read(uint16_t address) noexcept {
     return data;
 
   switch (addr) {
-  case 0x0000 ... 0x1fff: return 0;
+  case 0x0000 ... 0x1fff:
+    return pattern[(addr & (1 << 0xc)) >> 0xc][addr & 0x0fff];
+
+  case 0x2000 ... 0x3eff:
+    addr &= 0x0fff;
+
+    if (cart->mirroring_mode == cart::MirroringMode::Vertical) {
+      return nametables[(addr & (1 << 0xa)) >> 0xa][addr & 0x3ff];
+    } else if (cart->mirroring_mode == cart::MirroringMode::Horizontal) {
+      return nametables[(addr & (1 << 0xb)) >> 0xb][addr & 0x3ff];
+    }
+
+    return 0;
 
   case 0x3f00 ... 0x3fff: {
     addr &= 0x001f;
@@ -189,7 +417,7 @@ uint8_t PPU::ppu_read(uint16_t address) noexcept {
     default: break;
     }
 
-    return palette_memory[addr];
+    return palette_memory[addr] & (mask.grayscale ? 0x30 : 0x3f);
   }
 
   default: return 0;
@@ -203,7 +431,26 @@ void PPU::ppu_write(uint16_t address, uint8_t value) noexcept {
     return;
 
   switch (addr) {
-  case 0x0000 ... 0x1fff: break;
+  case 0x0000 ... 0x1fff:
+    // Address is between 0x0000 and 0x1fff. To get "which patterntable to
+    // address", we take the MSB. And then to get the index inside the
+    // patterntable, we mask it with 0x0fff (the patterntable size).
+    // Bless hex and bitwise.
+    pattern[(addr & (1 << 0xc)) >> 0xc][addr & 0x0fff] = value;
+    break;
+
+  case 0x2000 ... 0x3eff:
+    addr &= 0x0fff;
+
+    if (cart->mirroring_mode == cart::MirroringMode::Vertical) {
+      auto nametable_idx = (addr & (1 << 0xa)) >> 0xa;
+      nametables[nametable_idx][addr & 0x3ff] = value;
+    } else if (cart->mirroring_mode == cart::MirroringMode::Horizontal) {
+      auto nametable_idx = (addr & (1 << 0xb)) >> 0xb;
+      nametables[nametable_idx][addr & 0x3ff] = value;
+    }
+
+    break;
 
   case 0x3f00 ... 0x3fff: {
     addr &= 0x001f;

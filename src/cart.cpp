@@ -11,12 +11,16 @@ auto logger = spdlog::stderr_color_mt("nes::cart");
 
 Cart::Cart(std::vector<uint8_t> prg_rom, uint8_t prg_banks,
            std::vector<uint8_t> chr_rom, uint8_t chr_banks,
-           std::unique_ptr<mappers::Mapper> mapper) noexcept
+           std::unique_ptr<mappers::Mapper> mapper,
+           MirroringMode mirroring_mode) noexcept
     : prg_rom(std::move(prg_rom)), prg_banks(prg_banks),
       chr_rom(std::move(chr_rom)), chr_banks(chr_banks),
-      mapper(std::move(mapper)) {
+      mapper(std::move(mapper)), mirroring_mode(mirroring_mode) {
   logger->debug("PRG Size: {}", this->prg_rom.size());
   logger->debug("CHR Size: {}", this->chr_rom.size());
+  logger->info("Mirroring mode: {}", mirroring_mode == MirroringMode::Horizontal
+                                         ? "Horizontal"
+                                         : "Vertical");
 }
 
 bool Cart::bus_read(uint16_t address, uint8_t &value) noexcept {
@@ -68,8 +72,10 @@ struct Header {
 
   union {
     struct {
-      uint8_t _ : 3;
+      uint8_t mirroring : 1;
+      uint8_t _ : 1;
       uint8_t trainer : 1;
+      uint8_t _ignore : 1;
       uint8_t mapper_lower : 4;
     };
     uint8_t raw;
@@ -142,7 +148,12 @@ load(const std::string &file_path) noexcept {
     return std::nullopt;
   }
 
+  auto mirroring_mode = header.flags_1.mirroring == 0
+                            ? MirroringMode::Horizontal
+                            : MirroringMode::Vertical;
+
   return std::make_shared<Cart>(prg_rom, header.num_prg_chunks, chr_rom,
-                                header.num_chr_chunks, std::move(*mapper));
+                                header.num_chr_chunks, std::move(*mapper),
+                                mirroring_mode);
 }
 } // namespace nes::cart

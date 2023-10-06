@@ -113,7 +113,7 @@ int main([[maybe_unused]] const int argc, [[maybe_unused]] const char **argv) {
   ImGui_ImplGlfw_InitForOpenGL(window, true);
   ImGui_ImplOpenGL3_Init(glsl_version);
 
-  auto bus = bus::Bus(std::move(*loaded_cart));
+  auto bus = bus::Bus(*loaded_cart);
 
   GLuint screen_texture;
 

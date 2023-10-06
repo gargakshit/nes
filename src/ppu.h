@@ -3,7 +3,6 @@
 
 #include <array>
 #include <memory>
-#include <span>
 
 #include "cart.h"
 
@@ -27,8 +26,8 @@ union Control {
 union Mask {
   struct {
     uint8_t grayscale : 1;
-    uint8_t left_sprite : 1;
     uint8_t left_background : 1;
+    uint8_t left_sprite : 1;
     uint8_t show_background : 1;
     uint8_t show_sprites : 1;
     uint8_t emp_red : 1;
@@ -50,11 +49,11 @@ union Status {
 
 union InternalRendering {
   struct {
-    uint16_t coarse_x_scroll : 5;
-    uint16_t coarse_y_scroll : 5;
+    uint16_t coarse_x : 5;
+    uint16_t coarse_y : 5;
     uint16_t nametable_x : 1;
     uint16_t nametable_y : 1;
-    uint16_t fine_y_scroll : 3;
+    uint16_t fine_y : 3;
     uint16_t _ : 1;
   };
   uint16_t reg;
@@ -64,8 +63,8 @@ struct Registers {
   Control control;
   Mask mask;
   Status status;
-  InternalRendering active_rendering;
-  InternalRendering temp_rendering;
+  InternalRendering v;
+  InternalRendering t;
 };
 
 class PPU : public Registers {
@@ -74,8 +73,8 @@ class PPU : public Registers {
 
   uint8_t data_buffer = 0;
   uint8_t address_latch = 0;
-  uint8_t scroll_fine_x = 0;
-  uint16_t address = 0;
+  uint8_t fine_x = 0; // Supposed to be 3 bits, but I am not making an unaligned
+                      // bitfield here.
 
   std::array<std::array<uint8_t, 1024>, 2> nametables{};
   std::array<std::array<uint8_t, 4096>, 2> pattern{};
@@ -83,7 +82,7 @@ class PPU : public Registers {
   std::array<uint8_t, 256> oam_memory{};
 
   // 64 NES colors stored as RGB.
-  std::array<uint8_t, 64 * 3> colors{
+  constexpr const static std::array<uint8_t, 64 * 3> colors{
       84,  84,  84,  0,   30,  116, 8,   16,  144, 48,  0,   136, 68,  0,   100,
       92,  0,   48,  84,  4,   0,   60,  24,  0,   32,  42,  0,   8,   58,  0,
       0,   64,  0,   0,   60,  0,   0,   50,  60,  0,   0,   0,   0,   0,   0,
@@ -100,12 +99,29 @@ class PPU : public Registers {
 
   std::shared_ptr<cart::Cart> cart;
 
-  size_t get_palette_idx(size_t index, uint8_t pixel);
+  size_t get_palette_idx(size_t index, uint8_t pixel) const noexcept;
 
   std::array<std::array<uint8_t, 128 * 128 * 3>, 2> rendered_pattern_tables{};
   // 8 palettes, 4 colors, 3 channels. Use GL NEAREST_NEIGHBOUR to upscale. I
   // can't spare more CPU cycles on rendering debug information.
-  std::array<uint8_t, 8 * 4 * 3> rendered_palettes;
+  std::array<uint8_t, 8 * 4 * 3> rendered_palettes{};
+
+  // We will use the PPU frame timing diagram as a reference.
+  // https://www.nesdev.org/w/images/default/4/4f/Ppu.svg
+  // To accurately represent how a PPU renders, we will need some internal
+  // state.
+
+  uint8_t bg_next_tile_id = 0;
+  uint8_t bg_next_attrib = 0;
+  uint8_t bg_next_tile_lo = 0;
+  uint8_t bg_next_tile_hi = 0;
+
+  // See https://www.nesdev.org/wiki/PPU_rendering#:~:text=contains%20the%20following%3A-,Background,-VRAM%20address%2C%20temporary
+
+  uint16_t sr_bg_pattern_lo = 0;
+  uint16_t sr_bg_pattern_hi = 0;
+  uint16_t sr_bg_attrib_lo = 0;
+  uint16_t sr_bg_attrib_hi = 0;
 
 public:
   const static auto screen_width = 256;
@@ -129,7 +145,7 @@ public:
   uint8_t bus_read(uint16_t addr) noexcept;
 
   void ppu_write(uint16_t address, uint8_t value) noexcept;
-  uint8_t ppu_read(uint16_t address) noexcept;
+  uint8_t ppu_read(uint16_t address) const noexcept;
 };
 } // namespace nes::ppu
 
