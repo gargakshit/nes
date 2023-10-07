@@ -30,6 +30,7 @@ class GUI {
   void render_ppu_state() noexcept;
   void render_system_metrics() noexcept;
   void render_screen() const noexcept;
+  void render_controller_input() const noexcept;
 
 public:
   GUI(bus::Bus &bus) noexcept;

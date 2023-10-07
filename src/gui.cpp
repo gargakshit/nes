@@ -163,11 +163,52 @@ void GUI::render_screen() const noexcept {
   ImGui::End();
 }
 
+void GUI::render_controller_input() const noexcept {
+  platform::imgui_begin("Controllers");
+
+  ImGui::TextColored(label_color, "Controller 0");
+
+  ImGui::TextColored(label_color, "Up");
+  ImGui::SameLine();
+  ImGui::Text("%d", bus.controller_1.up);
+
+  ImGui::TextColored(label_color, "Down");
+  ImGui::SameLine();
+  ImGui::Text("%d", bus.controller_1.down);
+
+  ImGui::TextColored(label_color, "Left");
+  ImGui::SameLine();
+  ImGui::Text("%d", bus.controller_1.left);
+
+  ImGui::TextColored(label_color, "Right");
+  ImGui::SameLine();
+  ImGui::Text("%d", bus.controller_1.right);
+
+  ImGui::TextColored(label_color, "Select");
+  ImGui::SameLine();
+  ImGui::Text("%d", bus.controller_1.select);
+
+  ImGui::TextColored(label_color, "Start");
+  ImGui::SameLine();
+  ImGui::Text("%d", bus.controller_1.start);
+
+  ImGui::TextColored(label_color, "A");
+  ImGui::SameLine();
+  ImGui::Text("%d", bus.controller_1.a);
+
+  ImGui::TextColored(label_color, "B");
+  ImGui::SameLine();
+  ImGui::Text("%d", bus.controller_1.b);
+
+  ImGui::End();
+}
+
 void GUI::render() noexcept {
   render_system_metrics();
   render_cpu_state();
   render_screen();
   render_ppu_state();
+  render_controller_input();
 }
 
 GUI::~GUI() noexcept { logger->debug("Destructing the GUI."); }
