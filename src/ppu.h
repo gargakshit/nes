@@ -134,6 +134,9 @@ class PPU : public Registers {
   std::array<OAMEntry, 8> secondary_oam{};
   uint8_t sprite_count = 0;
 
+  bool sprite_0_hit_possible = false;
+  bool sprite_0_hit_rendered = false;
+
 public:
   const static auto screen_width = 256;
   const static auto screen_height = 240;

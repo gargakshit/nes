@@ -127,6 +127,7 @@ void PPU::tick() noexcept {
       // New frame. I ain't in the vblank no more.
       status.vblank = 0;
       status.sprite_overflow = 0;
+      status.sprite_0_hit = 0;
 
       sr_sprite_pattern_lo.fill(0);
       sr_sprite_pattern_hi.fill(0);
@@ -231,11 +232,14 @@ void PPU::tick() noexcept {
       sr_sprite_pattern_lo.fill(0);
       sr_sprite_pattern_hi.fill(0);
       sprite_count = 0;
+      sprite_0_hit_possible = false;
 
       // Evaluate sprites for the next scanline.
 
       // Iterate through OAM memory.
-      for (auto &oam_entry : oam) {
+      for (auto i = 0; i < 64; i++) {
+        auto oam_entry = oam[i];
+
         int sprite_y_diff = (int)scanline - (int)oam_entry.y;
         auto visible = sprite_y_diff >= 0 &&
                        sprite_y_diff < (control.sprite_16x8_mode ? 16 : 8);
@@ -244,6 +248,9 @@ void PPU::tick() noexcept {
           continue;
 
         if (sprite_count < 8) {
+          if (i == 0)
+            sprite_0_hit_possible = true;
+
           secondary_oam[sprite_count] = OAMEntry{
               .y = oam_entry.y,
               .id = oam_entry.id,
@@ -360,6 +367,8 @@ void PPU::tick() noexcept {
   uint8_t spr_priority = 0;
 
   if (mask.show_sprites) {
+    sprite_0_hit_rendered = false;
+
     for (auto i = 0; i < sprite_count; i++) {
       if (i >= 8)
         break;
@@ -376,8 +385,11 @@ void PPU::tick() noexcept {
       spr_priority = (secondary_oam[i].attribute & 0x20) == 0;
 
       // Break if we found something to draw.
-      if (spr_pixel != 0)
+      if (spr_pixel != 0) {
+        if (i == 0)
+          sprite_0_hit_rendered = true;
         break;
+      }
     }
   }
 
@@ -394,6 +406,15 @@ void PPU::tick() noexcept {
   } else if (bg_pixel != 0 && spr_pixel != 0) {
     pixel = spr_priority ? spr_pixel : bg_pixel;
     palette = spr_priority ? spr_palette : bg_palette;
+
+    if (sprite_0_hit_possible && sprite_0_hit_rendered && mask.show_sprites &&
+        mask.show_background) {
+      if (~(mask.left_sprite | mask.left_background) && cycle >= 9 &&
+          cycle < 258)
+        status.sprite_0_hit = 1;
+      else if (cycle >= 1 && cycle < 258)
+        status.sprite_0_hit = 1;
+    }
   }
 
   // Time to draw.

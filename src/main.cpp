@@ -40,7 +40,7 @@ static void glfw_error_callback(int error, const char *description) {
 int main([[maybe_unused]] const int argc, [[maybe_unused]] const char **argv) {
   setup_spdlog();
 
-  auto loaded_cart = cart::load("carts/dk.nes");
+  auto loaded_cart = cart::load("carts/smb.nes");
   if (!loaded_cart) {
     return 1;
   }
