@@ -15,7 +15,7 @@ Bus::Bus(const std::shared_ptr<cart::Cart> &cart) noexcept
       cpu(cpu::CPU(std::bind(&Bus::read, this, std::placeholders::_1),
                    std::bind(&Bus::write, this, std::placeholders::_1,
                              std::placeholders::_2))),
-      ppu(cart) {
+      ppu(cart), controller_1() {
   logger->trace("Creating a new bus.");
   logger->trace("Created a wram of size {0:#x} ({0}) bytes.", wram.size());
 }
@@ -32,6 +32,11 @@ uint8_t Bus::read(uint16_t address) noexcept {
   switch (address) {
   case 0x0000 ... 0x1fff: return wram[address & 0x07ff];
   case 0x2000 ... 0x3fff: return ppu.bus_read(address & 0x7);
+  case 0x4016 ... 0x4017: {
+    auto val = (captured_controller_1 & 0x80) > 0;
+    captured_controller_1 <<= 1;
+    return val;
+  }
   default: logger->trace("Ignoring read from {:#06x}", address); return 0;
   }
 }
@@ -45,6 +50,7 @@ void Bus::write(uint16_t address, uint8_t value) noexcept {
   switch (address) {
   case 0x0000 ... 0x1fff: wram[address & 0x07ff] = value; break;
   case 0x2000 ... 0x3fff: ppu.bus_write(address & 0x7, value); break;
+  case 0x4016 ... 0x4017: captured_controller_1 = controller_1.state; break;
   default: logger->trace("Ignoring write to {:#06x}", address); break;
   }
 }

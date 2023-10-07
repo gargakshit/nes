@@ -12,6 +12,7 @@
 
 #include "bus.h"
 #include "cart.h"
+#include "controller.h"
 #include "gui.h"
 #include "platform.h"
 
@@ -114,9 +115,6 @@ int main([[maybe_unused]] const int argc, [[maybe_unused]] const char **argv) {
   ImGui_ImplOpenGL3_Init(glsl_version);
 
   auto bus = bus::Bus(*loaded_cart);
-
-  GLuint screen_texture;
-
   gui::GUI gui(bus);
 
   auto clear_color = ImVec4(0.024f, 0.024f, 0.03f, 1.00f);
@@ -128,6 +126,17 @@ int main([[maybe_unused]] const int argc, [[maybe_unused]] const char **argv) {
   int64_t bus_residual_time_us = 0;
   auto old_frame_start = high_resolution_clock::now();
 
+  const static auto keys = {
+      std::pair(GLFW_KEY_W, controller::Button::Up),
+      std::pair(GLFW_KEY_A, controller::Button::Left),
+      std::pair(GLFW_KEY_S, controller::Button::Down),
+      std::pair(GLFW_KEY_D, controller::Button::Right),
+      std::pair(GLFW_KEY_V, controller::Button::Select),
+      std::pair(GLFW_KEY_B, controller::Button::Start),
+      std::pair(GLFW_KEY_K, controller::Button::B),
+      std::pair(GLFW_KEY_L, controller::Button::A),
+  };
+
   while (!glfwWindowShouldClose(window)) {
     glfwPollEvents();
 
@@ -136,6 +145,11 @@ int main([[maybe_unused]] const int argc, [[maybe_unused]] const char **argv) {
                           frame_start - old_frame_start)
                           .count();
     old_frame_start = frame_start;
+
+    // Poll input.
+    for (auto &key : keys) {
+      bus.controller_1.set_key(key.second, glfwGetKey(window, key.first) > 0);
+    }
 
     if (bus_residual_time_us > 0) {
       bus_residual_time_us -= elapsed_us;

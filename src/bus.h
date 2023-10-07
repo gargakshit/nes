@@ -6,6 +6,7 @@
 #include <memory>
 
 #include "cart.h"
+#include "controller.h"
 #include "cpu.h"
 #include "ppu.h"
 
@@ -19,14 +20,21 @@ class Bus {
 
 public:
   std::shared_ptr<cart::Cart> cart;
+  controller::StandardController controller_1;
   cpu::CPU cpu;
   ppu::PPU ppu;
 
   // System metrics.
   uint64_t elapsed_cycles = 0;
+  uint8_t captured_controller_1 = 0;
 
-  explicit Bus(const std::shared_ptr<cart::Cart>& cart) noexcept;
+  explicit Bus(const std::shared_ptr<cart::Cart> &cart) noexcept;
   ~Bus() noexcept;
+
+  // Copy, move and default constructors.
+  Bus() = delete;
+  Bus(const Bus &) = delete;
+  Bus(const Bus &&) = delete;
 
   // Our "system bus" is essentially a combination of the CPU (main) bus and the
   // PPU bus.
