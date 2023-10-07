@@ -131,6 +131,8 @@ void PPU::tick() noexcept {
         // 0x2000 + offset. Remember we have nametable mirroring set-up. This
         // will give the whole tile ID. Pretty clever!
         bg_next_tile_id = ppu_read(0x2000 | (v.reg & 0x0fff));
+        logger->trace("Reading next tile ID from {:#06x} = {:#04x}",
+                      0x2000 | (v.reg & 0x0fff), bg_next_tile_id);
       } break;
 
       case 1: break;
@@ -141,9 +143,12 @@ void PPU::tick() noexcept {
         // values by 4 (remember you can have 64 attributes) per nametable, and
         // a 4x4 tile grid will have the same attribute. This is some clever
         // bitwise trickery.
-        bg_next_attrib =
-            ppu_read(0x23c0 | (v.nametable_y << 11) | (v.nametable_x << 10) |
-                     ((v.coarse_y >> 2) << 3) | (v.coarse_x >> 2));
+        auto address = 0x23c0 | (v.nametable_y << 11) | (v.nametable_x << 10) |
+                       ((v.coarse_y >> 2) << 3) | (v.coarse_x >> 2);
+        bg_next_attrib = ppu_read(address);
+
+        logger->debug("Reading next tile attribute from {:#06x} = {:#04x}",
+                      address, bg_next_attrib);
 
         // We read an 8-bit value. Remember we can have 4 active palettes for
         // the background. That means, each palette is 2-bit, and the attribute
@@ -219,8 +224,8 @@ void PPU::tick() noexcept {
   if (mask.show_background) {
     uint16_t mux = 0x8000 >> fine_x;
 
-    uint8_t pixel_lo = (sr_bg_attrib_lo & mux) > 0;
-    uint8_t pixel_hi = (sr_bg_attrib_hi & mux) > 0;
+    uint8_t pixel_lo = (sr_bg_pattern_lo & mux) > 0;
+    uint8_t pixel_hi = (sr_bg_pattern_hi & mux) > 0;
     pixel = (pixel_hi << 1) | pixel_lo;
 
     uint8_t palette_lo = (sr_bg_attrib_lo & mux) > 0;
@@ -234,8 +239,7 @@ void PPU::tick() noexcept {
 
   if (x >= 0 && x < 256 && y >= 0 && y < 240) {
     // Yes.
-    auto index = (y * 256) + x;
-    screen[y * 256 + x] = get_color(palette, pixel);
+    screen[y * screen_width + x] = get_color(palette, pixel);
   }
 
   cycle++;
@@ -302,7 +306,6 @@ uint8_t PPU::bus_read(uint16_t addr) noexcept {
   case 0x00: break; // Control.
   case 0x01: break; // Mask.
   case 0x02: {
-    status.vblank = 1;
     uint8_t data = (status.reg & 0xe0) | (data_buffer & 0x1f);
     // Reading the status clears vblank (???).
     status.vblank = 0;
@@ -317,7 +320,6 @@ uint8_t PPU::bus_read(uint16_t addr) noexcept {
   case 0x07: {
     // Reads are delayed by one cycle (???).
     uint8_t data = data_buffer;
-    //    data_buffer = ppu_read(v.reg);
     data_buffer = ppu_read(v.reg);
     // Except when we read the palette.
     if (v.reg >= 0x3f00)
@@ -358,10 +360,10 @@ void PPU::bus_write(uint16_t addr, uint8_t val) noexcept {
 
   case 0x06: {
     if (address_latch == 0) {
-      t.reg = (t.reg & 0x00ff) | (((uint16_t)val) << 8);
+      t.reg = (t.reg & 0x00ff) | (((uint16_t)val & 0x3f) << 8);
       address_latch = 1;
     } else {
-      t.reg = (t.reg & 0xff00) | val;
+      t.reg = (t.reg & 0xff00) | (uint16_t)val;
       v.reg = t.reg;
       address_latch = 0;
     }
@@ -376,16 +378,15 @@ void PPU::bus_write(uint16_t addr, uint8_t val) noexcept {
   }
 }
 
-uint8_t PPU::ppu_read(uint16_t address) const noexcept {
+uint8_t PPU::ppu_read(uint16_t addr) const noexcept {
   uint8_t data = 0;
-  auto addr = address & 0x3fff;
+  addr &= 0x3fff;
 
-  if (cart->ppu_read(address, data))
+  if (cart->ppu_read(addr, data))
     return data;
 
   switch (addr) {
-  case 0x0000 ... 0x1fff:
-    return pattern[(addr & (1 << 0xc)) >> 0xc][addr & 0x0fff];
+  case 0x0000 ... 0x1fff: return pattern[(addr & 0x1000) >> 12][addr & 0x0fff];
 
   case 0x2000 ... 0x3eff:
     addr &= 0x0fff;
@@ -415,8 +416,8 @@ uint8_t PPU::ppu_read(uint16_t address) const noexcept {
   }
 }
 
-void PPU::ppu_write(uint16_t address, uint8_t value) noexcept {
-  auto addr = address & 0x3fff;
+void PPU::ppu_write(uint16_t addr, uint8_t value) noexcept {
+  addr &= 0x3fff;
 
   if (cart->ppu_write(addr, value))
     return;
@@ -427,7 +428,7 @@ void PPU::ppu_write(uint16_t address, uint8_t value) noexcept {
     // address", we take the MSB. And then to get the index inside the
     // patterntable, we mask it with 0x0fff (the patterntable size).
     // Bless hex and bitwise.
-    pattern[(addr & (1 << 0xc)) >> 0xc][addr & 0x0fff] = value;
+    pattern[(addr & 0x1000) >> 12][addr & 0x0fff] = value;
     break;
 
   case 0x2000 ... 0x3eff:

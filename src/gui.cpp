@@ -12,8 +12,8 @@ const static auto label_color = ImVec4(1.0f, 0.3f, 0.3f, 1.0f);
 auto logger = spdlog::stderr_color_mt("nes::gui");
 
 GUI::GUI(bus::Bus &bus) noexcept
-    : bus(bus), screen(image::Image()), pattern_table_left(image::Image()),
-      pattern_table_right(image::Image()), rendered_palette(image::Image()) {
+    : bus(bus), screen(), pattern_table_left(), pattern_table_right(),
+      rendered_palette() {
   logger->debug("Initializing GUI.");
 }
 

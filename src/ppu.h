@@ -76,7 +76,6 @@ class PPU : public Registers {
   uint8_t fine_x = 0; // Supposed to be 3 bits, but I am not making an unaligned
                       // bitfield here.
 
-  std::array<std::array<uint8_t, 1024>, 2> nametables{};
   std::array<std::array<uint8_t, 4096>, 2> pattern{};
   std::array<uint8_t, 32> palette_memory{};
   std::array<uint8_t, 256> oam_memory{};
@@ -97,7 +96,7 @@ class PPU : public Registers {
 
   std::shared_ptr<cart::Cart> cart;
 
-  size_t get_color(size_t index, uint8_t pixel) const noexcept;
+  [[nodiscard]] size_t get_color(size_t index, uint8_t pixel) const noexcept;
 
   std::array<std::array<uint32_t, 128 * 128>, 2> rendered_pattern_tables{};
   // 8 palettes, 4 colors, 3 channels. Use GL NEAREST_NEIGHBOUR to upscale. I
@@ -126,6 +125,8 @@ public:
   const static auto screen_width = 256;
   const static auto screen_height = 240;
 
+  std::array<std::array<uint8_t, 1024>, 2> nametables{};
+
   bool nmi = false;
 
   // 256px width, 240px height.
@@ -144,7 +145,7 @@ public:
   uint8_t bus_read(uint16_t addr) noexcept;
 
   void ppu_write(uint16_t address, uint8_t value) noexcept;
-  uint8_t ppu_read(uint16_t address) const noexcept;
+  [[nodiscard]] uint8_t ppu_read(uint16_t address) const noexcept;
 };
 } // namespace nes::ppu
 
