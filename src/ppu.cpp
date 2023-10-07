@@ -88,16 +88,28 @@ void PPU::tick() noexcept {
         (sr_bg_attrib_hi & 0xff00) | ((bg_next_attrib & 0b10) ? 0xff : 0x00);
   };
 
-  auto update_sr_bg = [&]() {
-    if (!mask.show_background) {
-      return;
+  auto update_sr = [&]() {
+    if (mask.show_background) {
+      sr_bg_pattern_lo <<= 1;
+      sr_bg_pattern_hi <<= 1;
+
+      sr_bg_attrib_lo <<= 1;
+      sr_bg_attrib_hi <<= 1;
     }
 
-    sr_bg_pattern_lo <<= 1;
-    sr_bg_pattern_hi <<= 1;
+    if (mask.show_sprites && cycle >= 1 && cycle < 258) {
+      for (auto i = 0; i < sprite_count; i++) {
+        if (i >= 8)
+          break;
 
-    sr_bg_attrib_lo <<= 1;
-    sr_bg_attrib_hi <<= 1;
+        if (secondary_oam[i].x > 0)
+          secondary_oam[i].x--;
+        else {
+          sr_sprite_pattern_lo[i] <<= 1;
+          sr_sprite_pattern_hi[i] <<= 1;
+        }
+      }
+    }
   };
 
   // Visible scanlines.
@@ -114,11 +126,15 @@ void PPU::tick() noexcept {
     if (scanline == -1 && cycle == 1) {
       // New frame. I ain't in the vblank no more.
       status.vblank = 0;
+      status.sprite_overflow = 0;
+
+      sr_sprite_pattern_lo.fill(0);
+      sr_sprite_pattern_hi.fill(0);
     }
 
     // Essentially skipping the HBLANK now.
     if ((cycle >= 2 && cycle < 258) || (cycle >= 321 && cycle < 338)) {
-      update_sr_bg();
+      update_sr();
 
       // Let's synchronize to the NES PPU timings.
       switch ((cycle - 1) & 0x07) {
@@ -205,6 +221,112 @@ void PPU::tick() noexcept {
     // New frame, get ready for the next frame.
     if (scanline == -1 && cycle >= 280 && cycle < 305)
       transfer_y_addr();
+
+    // Foreground rendering.
+    // May not be 100% accurate.
+
+    if (scanline >= 0 && cycle == 257) {
+      // Clear the secondary OAM with 0xff.
+      secondary_oam.fill({0xff, 0xff, 0xff, 0xff});
+      sr_sprite_pattern_lo.fill(0);
+      sr_sprite_pattern_hi.fill(0);
+      sprite_count = 0;
+
+      // Evaluate sprites for the next scanline.
+
+      // Iterate through OAM memory.
+      for (auto &oam_entry : oam) {
+        int sprite_y_diff = (int)scanline - (int)oam_entry.y;
+        auto visible = sprite_y_diff >= 0 &&
+                       sprite_y_diff < (control.sprite_16x8_mode ? 16 : 8);
+
+        if (!visible)
+          continue;
+
+        if (sprite_count < 8) {
+          secondary_oam[sprite_count] = OAMEntry{
+              .y = oam_entry.y,
+              .id = oam_entry.id,
+              .attribute = oam_entry.attribute,
+              .x = oam_entry.x,
+          };
+          sprite_count++;
+        }
+
+        // Break as soon as we reach the 9th sprite.
+        if (sprite_count >= 9)
+          break;
+      }
+
+      status.sprite_overflow = sprite_count > 8;
+    }
+
+    if (cycle == 340) {
+      for (auto i = 0; i < sprite_count; i++) {
+        if (i >= 8)
+          break;
+
+        auto sprite = secondary_oam[i];
+        auto flipped = sprite.attribute & 0x80;
+
+        uint16_t addr_low = 0;
+
+        if (control.sprite_16x8_mode == 0) {
+          // 8x8.
+          if (!flipped) {
+            addr_low = (control.sprite_pattern_table << 12) | (sprite.id << 4) |
+                       (scanline - sprite.y);
+          } else {
+            addr_low = (control.sprite_pattern_table << 12) | (sprite.id << 4) |
+                       (7 - (scanline - sprite.y));
+          }
+        } else {
+          // 16x8.
+          if (!flipped) {
+            if (scanline - sprite.y < 8) {
+              // Top half.
+              addr_low = ((sprite.id & 1) << 12) | ((sprite.id & 0xfe) << 4) |
+                         ((scanline - sprite.y) & 0x7);
+            } else {
+              // Bottom half.
+              addr_low = ((sprite.id & 1) << 12) |
+                         (((sprite.id & 0xfe) + 1) << 4) |
+                         ((scanline - sprite.y) & 0x7);
+            }
+          } else {
+            if (scanline - sprite.y < 8) {
+              // Top half.
+              addr_low = ((sprite.id & 1) << 12) |
+                         (((sprite.id & 0xfe) + 1) << 4) |
+                         (7 - (scanline - sprite.y) & 0x7);
+            } else {
+              // Bottom half.
+              addr_low = ((sprite.id & 1) << 12) | ((sprite.id & 0xfe) << 4) |
+                         (7 - (scanline - sprite.y) & 0x7);
+            }
+          }
+        }
+
+        auto low_bitplane = ppu_read(addr_low);
+        auto high_bitplane = ppu_read(addr_low + 8);
+
+        // Flipped horizontally.
+        if (sprite.attribute & 0x40) {
+          auto flip_byte = [](uint8_t b) -> uint8_t {
+            b = (b & 0xF0) >> 4 | (b & 0x0F) << 4;
+            b = (b & 0xCC) >> 2 | (b & 0x33) << 2;
+            b = (b & 0xAA) >> 1 | (b & 0x55) << 1;
+            return b;
+          };
+
+          low_bitplane = flip_byte(low_bitplane);
+          high_bitplane = flip_byte(high_bitplane);
+        }
+
+        sr_sprite_pattern_lo[i] = low_bitplane;
+        sr_sprite_pattern_hi[i] = high_bitplane;
+      }
+    }
   }
 
   if (scanline == 240) {
@@ -218,29 +340,69 @@ void PPU::tick() noexcept {
       nmi = true;
   }
 
-  uint8_t pixel = 0;   // The pixel (2b).
-  uint8_t palette = 0; // Palette ID (3b).
+  uint8_t bg_pixel = 0;   // The bg_pixel (2b).
+  uint8_t bg_palette = 0; // Palette ID (3b).
 
   if (mask.show_background) {
     uint16_t mux = 0x8000 >> fine_x;
 
     uint8_t pixel_lo = (sr_bg_pattern_lo & mux) > 0;
     uint8_t pixel_hi = (sr_bg_pattern_hi & mux) > 0;
-    pixel = (pixel_hi << 1) | pixel_lo;
+    bg_pixel = (pixel_hi << 1) | pixel_lo;
 
     uint8_t palette_lo = (sr_bg_attrib_lo & mux) > 0;
     uint8_t palette_hi = (sr_bg_attrib_hi & mux) > 0;
-    palette = (palette_hi << 1) | palette_lo;
+    bg_palette = (palette_hi << 1) | palette_lo;
+  }
+
+  uint8_t spr_pixel = 0;
+  uint8_t spr_palette = 0;
+  uint8_t spr_priority = 0;
+
+  if (mask.show_sprites) {
+    for (auto i = 0; i < sprite_count; i++) {
+      if (i >= 8)
+        break;
+
+      // We haven't really started rendering this sprite.
+      if (secondary_oam[i].x != 0)
+        continue;
+
+      uint8_t pixel_lo = (sr_sprite_pattern_lo[i] & 0x80) > 0;
+      uint8_t pixel_hi = (sr_sprite_pattern_hi[i] & 0x80) > 0;
+      spr_pixel = (pixel_hi << 1) | pixel_lo;
+
+      spr_palette = (secondary_oam[i].attribute & 0x03) + 0x04;
+      spr_priority = (secondary_oam[i].attribute & 0x20) == 0;
+
+      // Break if we found something to draw.
+      if (spr_pixel != 0)
+        break;
+    }
+  }
+
+  uint8_t pixel = 0;
+  uint8_t palette = 0;
+
+  // Finally, get what pixel won.
+  if (bg_pixel != 0 && spr_pixel == 0) {
+    pixel = bg_pixel;
+    palette = bg_palette;
+  } else if (bg_pixel == 0 && spr_pixel != 0) {
+    pixel = spr_pixel;
+    palette = spr_palette;
+  } else if (bg_pixel != 0 && spr_pixel != 0) {
+    pixel = spr_priority ? spr_pixel : bg_pixel;
+    palette = spr_priority ? spr_palette : bg_palette;
   }
 
   // Time to draw.
   auto x = cycle - 1;
   auto y = scanline;
 
-  if (x >= 0 && x < 256 && y >= 0 && y < 240) {
-    // Yes.
+  // Yes.
+  if (x >= 0 && x < 256 && y >= 0 && y < 240)
     screen[y * screen_width + x] = get_color(palette, pixel);
-  }
 
   cycle++;
   if (cycle >= 341) {

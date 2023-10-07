@@ -18,6 +18,12 @@ class Bus {
   // Allocate 2kB (2048 bytes) of wram (working RAM, as nintendo calls it).
   std::array<uint8_t, wram_size> wram;
 
+  bool oam_dma = false;
+  bool dma_wait = true; // Wait for DMA to start.
+  uint8_t oam_page = 0x00;
+  uint8_t oam_addr = 0x00;
+  uint8_t dma_data = 0x00;
+
 public:
   std::shared_ptr<cart::Cart> cart;
   controller::StandardController controller_1;

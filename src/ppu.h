@@ -16,7 +16,7 @@ union Control {
     uint8_t vram_increment_mode : 1;
     uint8_t sprite_pattern_table : 1;
     uint8_t background_pattern_table : 1;
-    uint8_t sprite_size : 1;
+    uint8_t sprite_16x8_mode : 1;
     uint8_t slave_mode : 1;
     uint8_t nmi : 1;
   };
@@ -67,6 +67,13 @@ struct Registers {
   InternalRendering t;
 };
 
+struct OAMEntry {
+  uint8_t y;
+  uint8_t id;
+  uint8_t attribute;
+  uint8_t x;
+};
+
 class PPU : public Registers {
   int16_t scanline = 0;
   int16_t cycle = 0;
@@ -78,7 +85,6 @@ class PPU : public Registers {
 
   std::array<std::array<uint8_t, 4096>, 2> pattern{};
   std::array<uint8_t, 32> palette_memory{};
-  std::array<uint8_t, 256> oam_memory{};
 
   // 64 NES colors stored as RGB.
   constexpr const static std::array<uint32_t, 64> colors{
@@ -121,11 +127,19 @@ class PPU : public Registers {
   uint16_t sr_bg_attrib_lo = 0;
   uint16_t sr_bg_attrib_hi = 0;
 
+  std::array<uint8_t, 8> sr_sprite_pattern_lo;
+  std::array<uint8_t, 8> sr_sprite_pattern_hi;
+
+  std::array<OAMEntry, 64> oam{};
+  std::array<OAMEntry, 8> secondary_oam{};
+  uint8_t sprite_count = 0;
+
 public:
   const static auto screen_width = 256;
   const static auto screen_height = 240;
 
   std::array<std::array<uint8_t, 1024>, 2> nametables{};
+  uint8_t *oam_memory = (uint8_t *)oam.data();
 
   bool nmi = false;
 

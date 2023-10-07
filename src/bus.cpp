@@ -50,6 +50,16 @@ void Bus::write(uint16_t address, uint8_t value) noexcept {
   switch (address) {
   case 0x0000 ... 0x1fff: wram[address & 0x07ff] = value; break;
   case 0x2000 ... 0x3fff: ppu.bus_write(address & 0x7, value); break;
+
+  case 0x4014:
+    logger->debug("Starting OAM DMA on page {:#04x}.", value);
+
+    oam_page = value;
+    oam_addr = 0x00;
+    oam_dma = true;
+
+    break;
+
   case 0x4016 ... 0x4017: captured_controller_1 = controller_1.state; break;
   default: logger->trace("Ignoring write to {:#06x}", address); break;
   }
@@ -59,8 +69,31 @@ void Bus::tick() noexcept {
   ppu.tick();
 
   // The CPU runs 3x slower than the PPU.
-  if (elapsed_cycles % 3 == 0)
-    cpu.tick();
+  if (elapsed_cycles % 3 == 0) {
+    if (!oam_dma) {
+      cpu.tick();
+    } else {
+      // Waiting for DMA to sync. 513 / 514.
+      if (dma_wait) {
+        if (elapsed_cycles % 2 == 1) {
+          dma_wait = false;
+        }
+      } else {
+        if (elapsed_cycles % 2 == 0) {
+          dma_data = read(((uint16_t)oam_page << 8) | ((uint16_t)oam_addr));
+        } else {
+          ppu.oam_memory[oam_addr] = dma_data;
+          oam_addr++;
+
+          if (oam_addr == 0) {
+            dma_data = 0x00;
+            dma_wait = true;
+            oam_dma = false;
+          }
+        }
+      }
+    }
+  }
 
   if (ppu.nmi) {
     ppu.nmi = false;
