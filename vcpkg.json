@@ -11,7 +11,7 @@
   }, {
     "name" : "imgui",
     "version>=" : "1.89.7",
-    "features" : [ "docking-experimental", "glfw-binding", "metal-binding", "opengl3-binding" ]
+    "features" : [ "docking-experimental", "glfw-binding", "opengl3-binding" ]
   }, {
     "name" : "nlohmann-json",
     "version>=" : "3.11.2"
