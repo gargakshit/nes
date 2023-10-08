@@ -1,4 +1,5 @@
 #include "image.h"
+#include "glext.h"
 
 namespace nes::image {
 Image::Image() noexcept {
