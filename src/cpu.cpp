@@ -216,13 +216,6 @@ void CPU::addressing_mode(op::AddressingMode mode) noexcept {
   }
 }
 
-void CPU::flag_overflow(uint16_t result, uint16_t value) noexcept {
-  // Don't ask...
-  status.V =
-      (~((uint16_t)a ^ (uint16_t)value) & ((uint16_t)a ^ (uint16_t)result)) &
-      0x80;
-}
-
 void CPU::flag_negative(uint16_t result) noexcept {
   status.N = (result & 0x80) == 0x80;
 }
@@ -247,7 +240,9 @@ void CPU::execute(op::Op op) noexcept {
     uint16_t result = (uint16_t)a + (uint16_t)fetched + (uint16_t)status.C;
 
     // Set the flags.
-    flag_overflow(result, fetched);
+    status.V = ((~((uint16_t)a ^ (uint16_t)fetched) &
+                 ((uint16_t)a ^ (uint16_t)result)) &
+                0x80) > 0;
     flag_negative(result);
     flag_zero(result);
     flag_carry(result);
@@ -268,7 +263,7 @@ void CPU::execute(op::Op op) noexcept {
     uint16_t result = (uint16_t)a + (uint16_t)value + (uint16_t)status.C;
 
     // Set the flags.
-    flag_overflow(result, value);
+    status.V = ((result ^ (uint16_t)a) & (result ^ value) & 0x0080) > 0;
     flag_negative(result);
     flag_zero(result);
     flag_carry(result);
@@ -545,7 +540,7 @@ void CPU::execute(op::Op op) noexcept {
 
     flag_zero(result);
     flag_negative(result);
-    flag_carry(result);
+    status.C = fetched & 0x01;
 
     if (decoded_opcode->mode == op::AddressingMode::Implicit)
       a = result & 0xff;

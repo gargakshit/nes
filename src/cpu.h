@@ -66,9 +66,6 @@ class CPU : public Registers {
   // Execute the actual instruction.
   void execute(op::Op op) noexcept;
 
-  // Compute the overflow for an arithmetic operation. Must be called before
-  // setting the accumulator.
-  void flag_overflow(uint16_t result, uint16_t value) noexcept;
   // Compute the negative flag.
   void flag_negative(uint16_t result) noexcept;
   // Compute the zero flag.
