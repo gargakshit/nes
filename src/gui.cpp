@@ -155,12 +155,18 @@ void GUI::render_screen() const noexcept {
   using namespace nes::ppu;
 
   screen.set_data(bus.ppu.screen, PPU::screen_width, PPU::screen_height);
-  const static auto size =
-      ImVec2(PPU::screen_width * display_resolution_multiplier,
-             PPU::screen_height * display_resolution_multiplier);
+  const auto size = ImVec2(PPU::screen_width * screen_size_multiplier,
+                           PPU::screen_height * screen_size_multiplier);
 
   platform::imgui_begin("Screen (NTSC)");
+  ImGui::SetWindowSize(ImVec2(0, 0));
+
   ImGui::Image(screen.imgui_image(), size);
+  ImGui::End();
+
+  platform::imgui_begin("Display settings");
+  ImGui::TextColored(label_color, "Display Scale");
+  ImGui::SliderInt("", const_cast<int *>(&screen_size_multiplier), 1, 12);
   ImGui::End();
 }
 

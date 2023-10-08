@@ -14,6 +14,7 @@ using namespace nes;
 
 class GUI {
   const static auto display_resolution_multiplier = 2;
+  int screen_size_multiplier = 2;
 
   bus::Bus &bus;
 
