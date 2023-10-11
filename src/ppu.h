@@ -147,13 +147,29 @@ public:
   bool nmi = false;
 
   // 256px width, 240px height.
-  std::array<uint32_t, screen_width * screen_height> screen{};
+  std::array<uint32_t, screen_width * screen_height> screen_1{};
+  std::array<uint32_t, screen_width * screen_height> screen_2{};
+  std::array<uint32_t, screen_width * screen_height> *active_buffer = &screen_1;
+  std::array<uint32_t, screen_width * screen_height> *draw_buffer = &screen_2;
+
+  bool swapped = false;
   bool frame_complete = false;
 
   explicit PPU(std::shared_ptr<cart::Cart> cart) noexcept;
   ~PPU() noexcept;
 
   void tick() noexcept;
+
+  inline void swap() noexcept {
+    swapped = !swapped;
+    if (swapped) {
+      active_buffer = &screen_2;
+      draw_buffer = &screen_1;
+    } else {
+      active_buffer = &screen_1;
+      draw_buffer = &screen_2;
+    }
+  }
 
   std::array<uint32_t, 128 * 128> pattern_table(uint8_t index) noexcept;
   std::array<uint32_t, 8 * 4> get_rendered_palettes() noexcept;

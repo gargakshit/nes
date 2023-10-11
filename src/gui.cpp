@@ -153,7 +153,8 @@ void GUI::render_ppu_state() noexcept {
 void GUI::render_screen() const noexcept {
   using namespace nes::ppu;
 
-  screen.set_data(bus.ppu.screen, PPU::screen_width, PPU::screen_height);
+  screen.set_data(*bus.ppu.active_buffer, PPU::screen_width,
+                  PPU::screen_height);
   const auto size = ImVec2(PPU::screen_width * screen_size_multiplier,
                            PPU::screen_height * screen_size_multiplier);
 
