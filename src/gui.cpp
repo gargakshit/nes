@@ -1,6 +1,5 @@
 #include <imgui.h>
 
-#include <spdlog/fmt/bin_to_hex.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
 
