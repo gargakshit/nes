@@ -1,8 +1,5 @@
-#include <chrono>
-
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
-// TODO(AG): Add support for Metal.
 #include <imgui_impl_opengl3.h>
 
 #include <GLFW/glfw3.h>
