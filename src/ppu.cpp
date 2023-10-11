@@ -423,7 +423,8 @@ void PPU::tick() noexcept {
 
   // Yes.
   if (x >= 0 && x < 256 && y >= 0 && y < 240)
-    screen[y * screen_width + x] = get_color(palette, pixel);
+    // We will double-buffer;
+    (*draw_buffer)[y * screen_width + x] = get_color(palette, pixel);
 
   cycle++;
   if (cycle >= 341) {
