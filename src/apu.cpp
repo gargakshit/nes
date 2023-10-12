@@ -202,7 +202,7 @@ void APU::tick() noexcept {
     auto sample = mixer.mix(pulse1.unmixed(), pulse2.unmixed(), 0, 0, 0);
 
     samples[sample_idx] = sample;
-    sample_idx = (sample_idx + 1) % 512;
+    sample_idx = (sample_idx + 1) % 735;
   }
 }
 } // namespace nes::apu
