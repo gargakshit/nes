@@ -8,17 +8,20 @@
 namespace nes {
 // We'll keep a global reference. I don't like it, but yea...
 auto logger = spdlog::stderr_color_mt("nes::system");
-
-const auto sample_rate = 44100;
-uint buffer_size = 512;
+static uint sample_buf_size = 512;
 
 int audio_callback(void *output, void *input, unsigned int frames, double time,
                    RtAudioStreamStatus status, void *userData) {
   auto buffer = (float *)output;
   auto system = (System *)userData;
 
-  uint ticks = 5369318 * frames / sample_rate;
+  uint ticks = 5369318 * frames / apu::APU::sample_rate;
   system->tick(ticks);
+
+  for (int i = 0; i < 512; i++) {
+    auto sample = system->bus.apu.samples[i];
+    buffer[i] = sample;
+  }
 
   return 0;
 }
@@ -31,15 +34,16 @@ System::System(const std::shared_ptr<cart::Cart> &cart) noexcept
   logger->info("Audio device: {}", device.name);
 
   parameters.deviceId = deviceId;
-  parameters.nChannels = 2;
+  parameters.nChannels = 1;
   parameters.firstChannel = 0;
 
   logger->info("Audio params: channels = {}, sample_rate = {}, buffer_size = "
                "{}, format = float32",
-               parameters.nChannels, sample_rate, buffer_size);
+               parameters.nChannels, apu::APU::sample_rate, sample_buf_size);
 
-  if (audio.openStream(&parameters, nullptr, RTAUDIO_FLOAT32, sample_rate,
-                       &buffer_size, &audio_callback, this)) {
+  if (audio.openStream(&parameters, nullptr, RTAUDIO_FLOAT32,
+                       apu::APU::sample_rate, &sample_buf_size, &audio_callback,
+                       this)) {
     logger->error("Unable to open an audio stream, err = {}.",
                   audio.getErrorText());
     error_init = true;

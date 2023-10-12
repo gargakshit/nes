@@ -210,12 +210,19 @@ void GUI::render_controller_input() const noexcept {
   ImGui::End();
 }
 
+void GUI::render_apu() const noexcept {
+  platform::imgui_begin("APU");
+  ImGui::PlotLines("Master", bus.apu.samples.data(), bus.apu.samples.size());
+  ImGui::End();
+}
+
 void GUI::render() noexcept {
   render_system_metrics();
   render_cpu_state();
   render_screen();
   render_ppu_state();
   render_controller_input();
+  render_apu();
 }
 
 GUI::~GUI() noexcept { logger->debug("Destructing the GUI."); }

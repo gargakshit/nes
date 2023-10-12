@@ -15,6 +15,7 @@ bool load(const char *file_path) noexcept;
 void destroy() noexcept;
 
 class System {
+public:
   bus::Bus bus;
   gui::GUI gui;
   RtAudio audio;

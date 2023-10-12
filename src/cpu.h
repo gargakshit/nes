@@ -100,7 +100,7 @@ public:
 
   // Reset the CPU.
   void rst() noexcept;
-  // Simulate a clock tick. Maybe a NOP depending on the number of pending
+  // Simulate a tick tick. Maybe a NOP depending on the number of pending
   // cycles.
   void tick() noexcept;
   // Send an interrupt request.
