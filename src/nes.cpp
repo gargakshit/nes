@@ -58,7 +58,7 @@ System::System(const std::shared_ptr<cart::Cart> &cart) noexcept
   }
 }
 
-void System::tick(uint n) noexcept {
+void System::tick(unsigned int n) noexcept {
   for (auto i = 0; i < n; i++)
     bus.tick();
 }
