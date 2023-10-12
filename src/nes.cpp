@@ -20,7 +20,8 @@ int audio_callback(void *output, void *input, unsigned int frames, double time,
 
   for (int i = 0; i < 512; i++) {
     auto sample = system->bus.apu.samples[i];
-    buffer[i] = sample;
+    buffer[i * 2] = sample;
+    buffer[i * 2 + 1] = sample;
   }
 
   return 0;
@@ -34,7 +35,7 @@ System::System(const std::shared_ptr<cart::Cart> &cart) noexcept
   logger->info("Audio device: {}", device.name);
 
   parameters.deviceId = deviceId;
-  parameters.nChannels = 1;
+  parameters.nChannels = 2;
   parameters.firstChannel = 0;
 
   logger->info("Audio params: channels = {}, sample_rate = {}, buffer_size = "
