@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <memory>
 
+#include "apu.h"
 #include "cart.h"
 #include "controller.h"
 #include "cpu.h"
@@ -29,6 +30,7 @@ public:
   controller::StandardController controller_1;
   cpu::CPU cpu;
   ppu::PPU ppu;
+  apu::APU apu;
 
   // System metrics.
   uint64_t elapsed_cycles = 0;
