@@ -30,7 +30,7 @@ public:
   System(const System &other) = delete;
   System(const System &&other) = delete;
 
-  void tick(uint n) noexcept;
+  void tick(unsigned int n) noexcept;
   void render() noexcept;
   void set_key(const controller::Button key, const bool pressed) noexcept;
 };
