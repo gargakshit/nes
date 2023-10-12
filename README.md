@@ -36,3 +36,29 @@ The emulator is divided into several different subsystems,
 - **APU** (WIP) – Audio processing unit. I haven't implemented this yet.
 
 - **Carts and mappers** – The plasic with a PCB inside.
+
+## How to build?
+
+You'll need a couple things installed before you can get going,
+
+- CMake
+- Ninja (or `make`)
+- Clang (Can probably use GCC but MSVC won't work for sure)
+- vcpkg
+- XCode on macOS / Visual Studio with the C++ desktop workload on Windows
+
+You can then build it in release mode using
+
+```sh
+$ cmake -Bcmake-build-release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=[path to vcpkg]/scripts/buildsystems/vcpkg.cmake
+$ ninja -Ccmake-build-release
+```
+
+### What about debug mode?
+
+Well you can build it in debug mode as-well, but keep in mind that it enabled `trace`
+level logging which logs ~50 lines per machine cycle, and the machine runs at 5.3MHz.
+You run the risk of logging **gigabytes** of logs.
+
+Also, it enables address sanitizer which decreases program speed by a factor of two.
+It is recommended to build in release unless you know what you are doing.
