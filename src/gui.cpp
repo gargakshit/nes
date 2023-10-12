@@ -153,10 +153,10 @@ void GUI::render_ppu_state() noexcept {
 void GUI::render_screen() const noexcept {
   using namespace nes::ppu;
 
-  screen.set_data(*bus.ppu.active_buffer, PPU::screen_width,
-                  PPU::screen_height);
-  const auto size = ImVec2(PPU::screen_width * screen_size_multiplier,
-                           PPU::screen_height * screen_size_multiplier);
+  screen.set_data(bus.ppu.active_buffer, PPU::screen_width, PPU::screen_height);
+  const auto size =
+      ImVec2((float)(PPU::screen_width * screen_size_multiplier),
+             (float)(PPU::screen_height * screen_size_multiplier));
 
   platform::imgui_begin("Screen (NTSC)");
   ImGui::SetWindowSize(ImVec2(0, 0));
