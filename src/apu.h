@@ -177,7 +177,7 @@ public:
   uint64_t clock_speed = 5369318 / 3;
 
   const static unsigned int sample_rate = 44100;
-  std::array<float, 512> samples;
+  std::array<float, 735> samples;
   unsigned int sample_idx = 0;
 
   APU() noexcept;

@@ -8,7 +8,7 @@
 namespace nes {
 // We'll keep a global reference. I don't like it, but yea...
 auto logger = spdlog::stderr_color_mt("nes::system");
-static unsigned int sample_buf_size = 512;
+static unsigned int sample_buf_size = 735;
 
 int audio_callback(void *output, void *input, unsigned int frames, double time,
                    RtAudioStreamStatus status, void *userData) {
@@ -18,7 +18,7 @@ int audio_callback(void *output, void *input, unsigned int frames, double time,
   unsigned int ticks = 5369318 * frames / apu::APU::sample_rate;
   system->tick(ticks);
 
-  for (int i = 0; i < 512; i++) {
+  for (int i = 0; i < frames; i++) {
     auto sample = system->bus.apu.samples[i];
     buffer[i * 2] = sample;
     buffer[i * 2 + 1] = sample;
