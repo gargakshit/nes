@@ -424,7 +424,7 @@ void PPU::tick() noexcept {
   // Yes.
   if (x >= 0 && x < 256 && y >= 0 && y < 240)
     // We will double-buffer;
-    (*draw_buffer)[y * screen_width + x] = get_color(palette, pixel);
+    draw_buffer[y * screen_width + x] = get_color(palette, pixel);
 
   cycle++;
   if (cycle >= 341) {
@@ -434,6 +434,9 @@ void PPU::tick() noexcept {
     if (scanline >= 261) {
       scanline = -1;
       frame_complete = true;
+
+      // Swap the active buffers;
+      swap();
     }
   }
 }
