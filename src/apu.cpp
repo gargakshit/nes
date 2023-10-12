@@ -198,7 +198,7 @@ void APU::tick() noexcept {
     tick_sequencer();
 
   // Sample the output.
-  if (ticks % (clock_speed / sample_rate) == 0) {
+  if (ticks % (clock_speed / (sample_rate * 2)) == 0) {
     auto sample = mixer.mix(pulse1.unmixed(), pulse2.unmixed(), 0, 0, 0);
 
     samples[sample_idx] = sample;
