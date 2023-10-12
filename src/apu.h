@@ -176,9 +176,9 @@ class APU {
 public:
   uint64_t clock_speed = 5369318 / 3;
 
-  const static uint sample_rate = 44100;
+  const static unsigned int sample_rate = 44100;
   std::array<float, 512> samples;
-  uint sample_idx = 0;
+  unsigned int sample_idx = 0;
 
   APU() noexcept;
   ~APU() noexcept = default;
