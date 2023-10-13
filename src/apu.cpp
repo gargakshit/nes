@@ -53,7 +53,7 @@ void Pulse::tick_timer() noexcept {
     timer_value--;
   else {
     timer_value = (uint16_t)timer_low | ((uint16_t)timer_high << 8);
-    duty_value = (duty_value + 1) & 0x3;
+    duty_value = (duty_value + 1) % 8;
   }
 }
 
@@ -197,12 +197,15 @@ void APU::tick() noexcept {
   if (ticks % (clock_speed / 240) == 0)
     tick_sequencer();
 
-  // Sample the output.
-  if (ticks % (clock_speed / (sample_rate * 2)) == 0) {
-    auto sample = mixer.mix(pulse1.unmixed(), pulse2.unmixed(), 0, 0, 0);
+  if (ticks % (clock_speed / sample_rate) == 0) {
+    // Sample the output.
+    auto sample = mixer.mix(pulse1.unmixed(), pulse2.unmixed(), 0, 0, 0) / 2.f;
+
+    for (auto &filter : filters)
+      sample = filter->filter(sample);
 
     samples[sample_idx] = sample;
-    sample_idx = (sample_idx + 1) % 735;
+    sample_idx = (sample_idx + 1) % 512;
   }
 }
 } // namespace nes::apu

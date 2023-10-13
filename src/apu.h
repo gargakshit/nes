@@ -2,6 +2,9 @@
 #define NES_APU_H
 
 #include <array>
+#include <memory>
+
+#include "dsp.h"
 
 namespace nes::apu {
 struct LenCounter {
@@ -16,7 +19,7 @@ struct LenCounter {
 
 struct Envelope {
   bool start = false;
-  uint8_t decay = 0;
+  uint8_t step = 0;
   bool loop = false;
 
   // Divider.
@@ -29,7 +32,7 @@ struct Envelope {
     // https://www.nesdev.org/wiki/APU_Envelope.
 
     // if the start flag is clear, the divider is clocked, otherwise the start
-    // flag is cleared, the decay level counter is loaded with 15, and the
+    // flag is cleared, the step level counter is loaded with 15, and the
     // divider's sweep_period is immediately reloaded.
 
     if (rst) {
@@ -37,19 +40,19 @@ struct Envelope {
 
       rst = false;
       value = 15;
-      period = decay;
+      step = period;
     } else {
       // Clock the divider.
 
-      if (period > 0)
-        period--;
+      if (step > 0)
+        step--;
       else {
         // When the divider is clocked while at 0, it is loaded with V and
-        // clocks the decay level counter. Then one of two actions occurs: If
+        // clocks the step level counter. Then one of two actions occurs: If
         // the counter is non-zero, it is decremented, otherwise if the loop
-        // flag is set, the decay level counter is loaded with 15.
+        // flag is set, the step level counter is loaded with 15.
 
-        period = decay;
+        step = period;
         if (value > 0)
           value--;
         else if (loop)
@@ -177,7 +180,16 @@ public:
   uint64_t clock_speed = 5369318 / 3;
 
   const static unsigned int sample_rate = 44100;
-  std::array<float, 735> samples;
+
+private:
+  std::array<std::unique_ptr<dsp::AudioFilter>, 3> filters{
+      std::make_unique<dsp::HighPassFilter>(sample_rate, 90),
+      std::make_unique<dsp::HighPassFilter>(sample_rate, 440),
+      std::make_unique<dsp::LowPassFilter>(sample_rate, 14000),
+  };
+
+public:
+  std::array<float, 512> samples;
   unsigned int sample_idx = 0;
 
   APU() noexcept;
