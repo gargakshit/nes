@@ -1,8 +1,5 @@
-#include <chrono>
-
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
-// TODO(AG): Add support for Metal.
 #include <imgui_impl_opengl3.h>
 
 #include <GLFW/glfw3.h>
@@ -10,10 +7,9 @@
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
 
-#include "bus.h"
 #include "cart.h"
 #include "controller.h"
-#include "gui.h"
+#include "nes.h"
 #include "platform.h"
 
 #ifdef __APPLE__
@@ -114,17 +110,9 @@ int main([[maybe_unused]] const int argc, [[maybe_unused]] const char **argv) {
   ImGui_ImplGlfw_InitForOpenGL(window, true);
   ImGui_ImplOpenGL3_Init(glsl_version);
 
-  auto bus = bus::Bus(*loaded_cart);
-  gui::GUI gui(bus);
+  auto system = System(*loaded_cart);
 
   auto clear_color = ImVec4(0.024f, 0.024f, 0.03f, 1.00f);
-
-  using std::chrono::high_resolution_clock;
-  using namespace std::literals;
-
-  // Get the remaining time until the next burst of ticks.
-  int64_t bus_residual_time_us = 0;
-  auto old_frame_start = high_resolution_clock::now();
 
   const static auto keys = {
       std::pair(GLFW_KEY_W, controller::Button::Up),
@@ -140,41 +128,17 @@ int main([[maybe_unused]] const int argc, [[maybe_unused]] const char **argv) {
   while (!glfwWindowShouldClose(window)) {
     glfwPollEvents();
 
-    auto frame_start = high_resolution_clock::now();
-    auto elapsed_us = std::chrono::duration_cast<std::chrono::microseconds>(
-                          frame_start - old_frame_start)
-                          .count();
-    old_frame_start = frame_start;
-
     // Poll input.
     for (auto &key : keys) {
-      bus.controller_1.set_key(key.second, glfwGetKey(window, key.first) > 0);
+      system.set_key(key.second, glfwGetKey(window, key.first) > 0);
     }
-
-    if (bus_residual_time_us > 0) {
-      bus_residual_time_us -= elapsed_us;
-      spdlog::trace("Residual time: {}, elapsed_us = {}", bus_residual_time_us,
-                    elapsed_us);
-    } else {
-      bus_residual_time_us += (1000000 / 60) - elapsed_us;
-
-      // Drain the bus.
-      while (!bus.ppu.frame_complete)
-        bus.tick();
-      // Prepare for the next frame.
-      bus.ppu.frame_complete = false;
-    }
-
-    bus.ppu.frame_complete = false;
-    spdlog::debug("Elapsed {}, FC = {}", bus.elapsed_cycles,
-                  bus.ppu.frame_complete);
 
     // Initialize a new frame.
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
 
     ImGui::NewFrame();
-    gui.render();
+    system.render();
 
     ImGui::Render();
 

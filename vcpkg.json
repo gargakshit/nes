@@ -15,5 +15,8 @@
   }, {
     "name" : "nlohmann-json",
     "version>=" : "3.11.2"
+  }, {
+    "name": "rtaudio",
+    "version>=": "latest-overlay"
   } ]
 }

@@ -22,7 +22,7 @@ enum struct AddressingMode {
 enum struct Op {
   ADC, // Add with carry.
   AND, // Logical AND.
-  ASL, // Arithmetic shift left.
+  ASL, // Arithmetic sweep_shift left.
   BCC, // Branch if carry clear.
   BCS, // Branch if carry set.
   BEQ, // Branch if equal (zero flag).
@@ -52,7 +52,7 @@ enum struct Op {
   LDA, // Load accumulator.
   LDX, // Load X register.
   LDY, // Load Y register.
-  LSR, // Logical shift left.
+  LSR, // Logical sweep_shift left.
   NOP, // No-op.
   ORA, // Logical inclusive OR.
   PHA, // Push accumulator.

@@ -42,6 +42,10 @@ target_link_libraries(nes PRIVATE OpenGL::GL)
 find_package(nlohmann_json CONFIG REQUIRED)
 target_link_libraries(test-cpu PRIVATE nlohmann_json::nlohmann_json)
 
+# Link with RtAudio.
+find_package(RtAudio CONFIG REQUIRED)
+target_link_libraries(nes PRIVATE RtAudio::rtaudio)
+
 # Silence OpenGL warnings on MacOS.
 add_compile_definitions(GL_SILENCE_DEPRECATION)
 

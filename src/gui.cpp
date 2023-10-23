@@ -1,6 +1,5 @@
 #include <imgui.h>
 
-#include <spdlog/fmt/bin_to_hex.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
 
@@ -154,9 +153,10 @@ void GUI::render_ppu_state() noexcept {
 void GUI::render_screen() const noexcept {
   using namespace nes::ppu;
 
-  screen.set_data(bus.ppu.screen, PPU::screen_width, PPU::screen_height);
-  const auto size = ImVec2(PPU::screen_width * screen_size_multiplier,
-                           PPU::screen_height * screen_size_multiplier);
+  screen.set_data(bus.ppu.active_buffer, PPU::screen_width, PPU::screen_height);
+  const auto size =
+      ImVec2((float)(PPU::screen_width * screen_size_multiplier),
+             (float)(PPU::screen_height * screen_size_multiplier));
 
   platform::imgui_begin("Screen (NTSC)");
   ImGui::SetWindowSize(ImVec2(0, 0));
@@ -210,12 +210,19 @@ void GUI::render_controller_input() const noexcept {
   ImGui::End();
 }
 
+void GUI::render_apu() const noexcept {
+  platform::imgui_begin("APU");
+  ImGui::PlotLines("Master", bus.apu.samples.data(), bus.apu.samples.size());
+  ImGui::End();
+}
+
 void GUI::render() noexcept {
   render_system_metrics();
   render_cpu_state();
   render_screen();
   render_ppu_state();
   render_controller_input();
+  render_apu();
 }
 
 GUI::~GUI() noexcept { logger->debug("Destructing the GUI."); }

@@ -141,13 +141,32 @@ public:
   const static auto screen_width = 256;
   const static auto screen_height = 240;
 
+private:
+  std::array<uint32_t, screen_width * screen_height> screen_1{};
+  std::array<uint32_t, screen_width * screen_height> screen_2{};
+
+  inline void swap() noexcept {
+    swapped = !swapped;
+    if (swapped) {
+      active_buffer = screen_2.data();
+      draw_buffer = screen_1.data();
+    } else {
+      active_buffer = screen_1.data();
+      draw_buffer = screen_2.data();
+    }
+  }
+
+public:
   std::array<std::array<uint8_t, 1024>, 2> nametables{};
   uint8_t *oam_memory = (uint8_t *)oam.data();
 
   bool nmi = false;
 
   // 256px width, 240px height.
-  std::array<uint32_t, screen_width * screen_height> screen{};
+  uint32_t* active_buffer = screen_1.data();
+  uint32_t *draw_buffer = screen_2.data();
+
+  bool swapped = false;
   bool frame_complete = false;
 
   explicit PPU(std::shared_ptr<cart::Cart> cart) noexcept;
